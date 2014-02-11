@@ -1,0 +1,9 @@
+/bin
+.classpath
+.project
+.settings
+*.class
+*.bin
+server_sample/
+src/shared_files
+src/*.txt

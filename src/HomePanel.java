@@ -8,6 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -21,6 +22,8 @@ public class HomePanel extends JPanel {
 	private JTextField username;
 	private JTextField ipAddress;
 	private JTextField portNum;
+	private final JButton btnLogin;
+	private final JButton btnSwitchUser;
 	protected static final String IP_PATTERN = "^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
 											  + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
 											  + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
@@ -106,8 +109,8 @@ public class HomePanel extends JPanel {
 		add(portNum, gbc_portNum);
 		portNum.setColumns(10);
 
-		// Login button and logic
-		final JButton btnLogin = new JButton("Login");
+		// Login button
+		btnLogin = new JButton("Login");
 		GridBagConstraints gbc_btnLogin = new GridBagConstraints();
 		gbc_btnLogin.insets = new Insets(0, 0, 0, 5);
 		gbc_btnLogin.gridx = 5;
@@ -132,12 +135,49 @@ public class HomePanel extends JPanel {
 						return;
 					}
 					btnLogin.setEnabled(false);
+					username.setEnabled(false);
+					ipAddress.setEnabled(false);
+					portNum.setEnabled(false);
+					btnSwitchUser.setEnabled(true);
 					tabbedPanel.setEnabledAt(1, true);
 					tabbedPanel.setEnabledAt(2, true);
 				}
 			}
 		});
 		add(btnLogin, gbc_btnLogin);
+		
+		// Switch user button
+		btnSwitchUser = new JButton("Switch User");
+		GridBagConstraints gbc_btnSwitchUser = new GridBagConstraints();
+		gbc_btnSwitchUser.insets = new Insets(0, 0, 0, 5);
+		gbc_btnSwitchUser.gridx = 5;
+		gbc_btnSwitchUser.gridy = 10;
+		btnSwitchUser.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				btnLogin.setEnabled(true);
+				username.setEnabled(true);
+				ipAddress.setEnabled(true);
+				portNum.setEnabled(true);
+				btnSwitchUser.setEnabled(false);
+				
+				tabbedPanel.remove(1);
+				tabbedPanel.remove(1);
+				JComponent groupPanel = new GroupPanel();
+				tabbedPanel.addTab("Groups", groupPanel);
+				JComponent fserverPanel = new FileServerPanel();
+				tabbedPanel.addTab("File Servers", fserverPanel);
+				tabbedPanel.setEnabledAt(1, false);
+				tabbedPanel.setEnabledAt(2, false);
+
+				if(RunClient.gclient.isConnected()) 
+					RunClient.gclient.disconnect();
+				if(RunClient.fclient.isConnected())
+					RunClient.fclient.disconnect();
+			}
+		});
+		add(btnSwitchUser, gbc_btnSwitchUser);
+		btnSwitchUser.setEnabled(false);
 	}
 
 	protected static boolean connectToServer(JTextField ipText, JTextField portText, Client client) {

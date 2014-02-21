@@ -61,8 +61,10 @@ public class RunClient extends JFrame {
 		setLocationRelativeTo(null);
 		addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent event) {
-				gclient.disconnect();
-				fclient.disconnect();
+				if(gclient.isConnected()) 
+					gclient.disconnect();
+				if(fclient.isConnected())
+					fclient.disconnect();
 				System.exit(0);
 			}
 		});

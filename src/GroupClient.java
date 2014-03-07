@@ -3,6 +3,7 @@
 import java.util.ArrayList;
 import java.util.List;
 
+
 public class GroupClient extends Client implements GroupClientInterface {
 
 	public UserToken getToken(String username) {
@@ -39,13 +40,14 @@ public class GroupClient extends Client implements GroupClientInterface {
 		}
 	}
 
-	public boolean createUser(String username, UserToken token) {
+	public boolean createUser(String username, UserToken token, String password) {
 		try {
 			Envelope message = null, response = null;
 			// Tell the server to create a user
 			message = new Envelope("CUSER");
 			message.addObject(username); // Add user name string
 			message.addObject(token); // Add the requester's token
+			message.addObject(password); // Add the user's password
 			System.out.println("\nCUSER message sent to Group Server: " + message.toString());
 			output.reset();
 			output.writeObject(message);

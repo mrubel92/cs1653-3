@@ -33,7 +33,7 @@ public class UserList implements java.io.Serializable {
 		}
 		else
 		{
-			//error
+			//don't create new user
 		}
 	}
 	
@@ -61,7 +61,15 @@ public class UserList implements java.io.Serializable {
 		String salt = list.get(username).getSalt();
 		password = password + salt;
 		byte[] hashedpass = hashPassword(password);
-		return list.get(username).checkPassword(hashedpass);
+		if(hashedpass != null)
+		{
+			return list.get(username).checkPassword(hashedpass);
+		}
+		else
+		{
+			return false;
+		}
+		return false;
 	}
 
 	public synchronized void deleteUser(String username) {

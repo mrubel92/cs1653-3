@@ -50,18 +50,21 @@ public class GroupThread extends Thread {
 					System.out.println("GET response sent to client: " + response.toString());
 				} else if (message.getMessage().equals("CUSER")) // Client wants to create a user
 				{
-					if (message.getObjContents().size() < 2)
+					if (message.getObjContents().size() < 3)
 						response = new Envelope("FAIL");
 					else {
 						response = new Envelope("FAIL");
 
 						if (message.getObjContents().get(0) != null) {
 							if (message.getObjContents().get(1) != null) {
-								String username = (String) message.getObjContents().get(0); // Extract the username
-								UserToken yourToken = (UserToken) message.getObjContents().get(1); // Extract the token
-
-								if (createUser(username, yourToken))
-									response = new Envelope("OK"); // Success
+								if (message.getObjContents().get(2) != null) {
+								
+									String username = (String) message.getObjContents().get(0); // Extract the username
+									UserToken yourToken = (UserToken) message.getObjContents().get(1); // Extract the token
+									String password = (String) message.getObjContents().get(2);
+									if (createUser(username, yourToken, password))
+										response = new Envelope("OK"); // Success
+								}
 							}
 						}
 					}

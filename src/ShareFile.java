@@ -1,38 +1,41 @@
+
 public class ShareFile implements java.io.Serializable, Comparable<ShareFile> {
-	private static final long serialVersionUID = -6699986336399821598L;
-	private String group;
-	private String path;
-	private String owner;
 
-	public ShareFile(String _owner, String _group, String _path) {
-		group = _group;
-		owner = _owner;
-		path = _path;
-	}
+    private static final long serialVersionUID = -6699986336399821598L;
+    private final String group;
+    private final String path;
+    private final String owner;
 
-	public String getPath() {
-		return path;
-	}
+    public ShareFile(String _owner, String _group, String _path) {
+        group = _group;
+        owner = _owner;
+        path = _path;
+    }
 
-	public String getOwner() {
-		return owner;
-	}
+    public String getPath() {
+        return path;
+    }
 
-	public String getGroup() {
-		return group;
-	}
+    public String getOwner() {
+        return owner;
+    }
 
-	public int compareTo(ShareFile rhs) {
-		if (path.compareTo(rhs.getPath()) == 0)
-			return 0;
-		else if (path.compareTo(rhs.getPath()) < 0)
-			return -1;
-		else
-			return 1;
-	}
+    public String getGroup() {
+        return group;
+    }
 
-	@Override
-	public String toString() {
-		return "ShareFile [group=" + group + ", path=" + path + ", owner=" + owner + "]";
-	}
+    @Override
+    public int compareTo(ShareFile rhs) {
+        if (path.compareTo(rhs.getPath()) == 0)
+            return 0;
+        else if (path.compareTo(rhs.getPath()) < 0)
+            return -1;
+        else
+            return 1;
+    }
+
+    @Override
+    public String toString() {
+        return "ShareFile [group=" + group + ", path=" + path + ", owner=" + owner + "]";
+    }
 }

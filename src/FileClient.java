@@ -8,214 +8,212 @@ import java.util.List;
 
 public class FileClient extends Client implements FileClientInterface {
 
-	public boolean delete(String filename, UserToken token) {
-		String remotePath;
-		if (filename.charAt(0) == '/')
-			remotePath = filename.substring(1);
-		else
-			remotePath = filename;
+    @Override
+    public boolean delete(String filename, UserToken token) {
+        String remotePath;
+        if (filename.charAt(0) == '/')
+            remotePath = filename.substring(1);
+        else
+            remotePath = filename;
 
-		Envelope message = null, response = null;
-		message = new Envelope("DELETEF"); // Success
-		message.addObject(remotePath);
-		message.addObject(token);
-		try {
-			output.reset();
-			output.writeObject(message);
-			response = (Envelope) input.readObject();
+        Envelope message, response;
+        message = new Envelope("DELETEF"); // Success
+        message.addObject(remotePath);
+        message.addObject(token);
+        try {
+            output.reset();
+            output.writeObject(message);
+            response = (Envelope) input.readObject();
 
-			if (response.getMessage().equals("OK"))
-				System.out.printf("File %s deleted successfully\n", filename);
-			else {
-				System.out.printf("Error deleting file %s (%s)\n", filename, response.getMessage());
-				return false;
-			}
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		} catch (ClassNotFoundException e1) {
-			e1.printStackTrace();
-		}
-		return true;
-	}
+            if (response.getMessage().equals("OK"))
+                System.out.printf("File %s deleted successfully\n", filename);
+            else {
+                System.out.printf("Error deleting file %s (%s)\n", filename, response.getMessage());
+                return false;
+            }
+        } catch (IOException | ClassNotFoundException e1) {
+            e1.printStackTrace(System.out);
+        }
+        return true;
+    }
 
-	public boolean download(String sourceFile, String destFile, UserToken token) {
-		if (sourceFile.charAt(0) == '/') {
-			sourceFile = sourceFile.substring(1);
-		}
+    @Override
+    public boolean download(String sourceFile, String destFile, UserToken token) {
+        String tempSourceFile = sourceFile;
+        if (tempSourceFile.charAt(0) == '/')
+            tempSourceFile = tempSourceFile.substring(1);
 
-		File file = new File(sourceFile);
-		try {
-			Envelope message = null, response = null;
+        File file = new File(tempSourceFile);
+        try {
+            Envelope message, response;
 
-			if (!file.exists()) {
-				file.createNewFile();
-				FileOutputStream fos = new FileOutputStream(file);
+            if (!file.exists()) {
+                file.createNewFile();
+                FileOutputStream fos = new FileOutputStream(file);
 
-				message = new Envelope("DOWNLOADF"); // Success
-				message.addObject(sourceFile);
-				message.addObject(token);
-				output.reset();
-				output.writeObject(message);
+                message = new Envelope("DOWNLOADF"); // Success
+                message.addObject(tempSourceFile);
+                message.addObject(token);
+                output.reset();
+                output.writeObject(message);
 
-				response = (Envelope) input.readObject();
+                response = (Envelope) input.readObject();
 
-				while (response.getMessage().equals("CHUNK")) {
-					fos.write((byte[]) response.getObjContents().get(0), 0, (Integer) response.getObjContents().get(1));
-					System.out.printf(".");
-					message = new Envelope("DOWNLOADF"); // Success
-					output.reset();
-					output.writeObject(message);
-					response = (Envelope) input.readObject();
-				}
-				fos.close();
+                while (response.getMessage().equals("CHUNK")) {
+                    fos.write((byte[]) response.getObjContents().get(0), 0, (Integer) response.getObjContents().get(1));
+                    System.out.printf(".");
+                    message = new Envelope("DOWNLOADF"); // Success
+                    output.reset();
+                    output.writeObject(message);
+                    response = (Envelope) input.readObject();
+                }
+                fos.close();
 
-				if (response.getMessage().equals("EOF")) {
-					fos.close();
-					System.out.printf("\nTransfer successful file %s\n", sourceFile);
-					message = new Envelope("OK"); // Success
-					output.reset();
-					output.writeObject(message);
-				} else {
-					System.out.printf("Error reading file %s (%s)\n", sourceFile, response.getMessage());
-					file.delete();
-					return false;
-				}
-			}
+                if (response.getMessage().equals("EOF")) {
+                    fos.close();
+                    System.out.printf("\nTransfer successful file %s\n", tempSourceFile);
+                    message = new Envelope("OK"); // Success
+                    output.reset();
+                    output.writeObject(message);
+                } else {
+                    System.out.printf("Error reading file %s (%s)\n", tempSourceFile, response.getMessage());
+                    file.delete();
+                    return false;
+                }
+            } else {
+                System.out.printf("Error couldn't create file %s\n", destFile);
+                return false;
+            }
+        } catch (IOException e1) {
+            System.out.printf("Error couldn't create file %s\n", destFile);
+            return false;
+        } catch (ClassNotFoundException e1) {
+            e1.printStackTrace(System.out);
+        }
+        return true;
+    }
 
-			else {
-				System.out.printf("Error couldn't create file %s\n", destFile);
-				return false;
-			}
-		} catch (IOException e1) {
-			System.out.printf("Error couldn't create file %s\n", destFile);
-			return false;
-		} catch (ClassNotFoundException e1) {
-			e1.printStackTrace();
-		}
-		return true;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public List<String> listFiles(UserToken token) {
+        try {
+            Envelope message, response;
+            // Tell the server to return the member list
+            message = new Envelope("LFILES");
+            message.addObject(token); // Add requester's token
+            output.reset();
+            output.writeObject(message);
 
-	@SuppressWarnings("unchecked")
-	public List<String> listFiles(UserToken token) {
-		try {
-			Envelope message = null, response = null;
-			// Tell the server to return the member list
-			message = new Envelope("LFILES");
-			message.addObject(token); // Add requester's token
-			output.reset();
-			output.writeObject(message);
+            response = (Envelope) input.readObject();
 
-			response = (Envelope) input.readObject();
+            // If server indicates success, return the member list
+            if (response.getMessage().equals("OK"))
+                return (List<String>) response.getObjContents().get(0);
+            return null;
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+            return null;
+        }
+    }
 
-			// If server indicates success, return the member list
-			if (response.getMessage().equals("OK"))
-				return (List<String>) response.getObjContents().get(0);
-			return null;
-		} catch (Exception e) {
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
-			return null;
-		}
-	}
+    @SuppressWarnings("unchecked")
+    public List<String> listGroupFiles(UserToken token, String group) {
+        try {
+            Envelope message, response;
+            // Tell the server to return the member list
+            message = new Envelope("LGFILES");
+            message.addObject(token); // Add requester's token
+            message.addObject(group);
+            output.reset();
+            output.writeObject(message);
 
-	@SuppressWarnings("unchecked")
-	public List<String> listGroupFiles(UserToken token, String group) {
-		try {
-			Envelope message = null, response = null;
-			// Tell the server to return the member list
-			message = new Envelope("LGFILES");
-			message.addObject(token); // Add requester's token
-			message.addObject(group);
-			output.reset();
-			output.writeObject(message);
+            response = (Envelope) input.readObject();
 
-			response = (Envelope) input.readObject();
+            // If server indicates success, return the member list
+            if (response.getMessage().equals("OK"))
+                return (List<String>) response.getObjContents().get(0);
+            return null;
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+            return null;
+        }
+    }
 
-			// If server indicates success, return the member list
-			if (response.getMessage().equals("OK"))
-				return (List<String>) response.getObjContents().get(0);
-			return null;
-		} catch (Exception e) {
-			System.err.println("Error: " + e.getMessage());
-			e.printStackTrace(System.err);
-			return null;
-		}
-	}
+    @Override
+    public boolean upload(String sourceFile, String destFile, String group, UserToken token) {
+        String tempDestFile = destFile;
+        if (tempDestFile.charAt(0) != '/')
+            tempDestFile = "/" + tempDestFile;
 
-	public boolean upload(String sourceFile, String destFile, String group, UserToken token) {
+        try {
+            Envelope message, response;
+            message = new Envelope("UPLOADF");
+            message.addObject(tempDestFile);
+            message.addObject(group);
+            message.addObject(token); // Add requester's token
+            output.reset();
+            output.writeObject(message);
+            try (FileInputStream fis = new FileInputStream(sourceFile)) {
+                response = (Envelope) input.readObject();
 
-		if (destFile.charAt(0) != '/')
-			destFile = "/" + destFile;
+                if (response.getMessage().equals("READY"))
+                    System.out.printf("Meta data upload successful\n");
+                else {
+                    System.out.printf("Upload failed: %s\n", response.getMessage());
+                    fis.close();
+                    return false;
+                }
 
-		try {
-			Envelope message = null, response = null;
-			message = new Envelope("UPLOADF");
-			message.addObject(destFile);
-			message.addObject(group);
-			message.addObject(token); // Add requester's token
-			output.reset();
-			output.writeObject(message);
+                do {
+                    byte[] buf = new byte[4096];
+                    if (response.getMessage().compareTo("READY") != 0) {
+                        System.out.printf("Server error: %s\n", response.getMessage());
+                        fis.close();
+                        return false;
+                    }
+                    message = new Envelope("CHUNK");
+                    int n = fis.read(buf); // can throw an IOException
+                    if (n > 0)
+                        System.out.printf(".");
+                    else if (n < 0) {
+                        System.out.println("Read error");
+                        fis.close();
+                        return false;
+                    }
 
-			FileInputStream fis = new FileInputStream(sourceFile);
+                    message.addObject(buf);
+                    message.addObject(new Integer(n));
 
-			response = (Envelope) input.readObject();
+                    output.reset();
+                    output.writeObject(message);
+                    response = (Envelope) input.readObject();
 
-			if (response.getMessage().equals("READY"))
-				System.out.printf("Meta data upload successful\n");
-			else {
-				System.out.printf("Upload failed: %s\n", response.getMessage());
-				fis.close();
-				return false;
-			}
+                } while (fis.available() > 0);
+            }
 
-			do {
-				byte[] buf = new byte[4096];
-				if (response.getMessage().compareTo("READY") != 0) {
-					System.out.printf("Server error: %s\n", response.getMessage());
-					fis.close();
-					return false;
-				}
-				message = new Envelope("CHUNK");
-				int n = fis.read(buf); // can throw an IOException
-				if (n > 0)
-					System.out.printf(".");
-				else if (n < 0) {
-					System.out.println("Read error");
-					fis.close();
-					return false;
-				}
+            if (response.getMessage().equals("READY")) {
+                message = new Envelope("EOF");
+                output.reset();
+                output.writeObject(message);
 
-				message.addObject(buf);
-				message.addObject(new Integer(n));
-
-				output.reset();
-				output.writeObject(message);
-				response = (Envelope) input.readObject();
-
-			} while (fis.available() > 0);
-			fis.close();
-
-			if (response.getMessage().equals("READY")) {
-				message = new Envelope("EOF");
-				output.reset();
-				output.writeObject(message);
-
-				response = (Envelope) input.readObject();
-				if (response.getMessage().equals("OK"))
-					System.out.printf("\nFile data upload successful\n");
-				else {
-					System.out.printf("\nUpload failed: %s\n", response.getMessage());
-					return false;
-				}
-			} else {
-				System.out.printf("Upload failed: %s\n", response.getMessage());
-				return false;
-			}
-		} catch (Exception e1) {
-			System.err.println("Error: " + e1.getMessage());
-			e1.printStackTrace(System.err);
-			return false;
-		}
-		return true;
-	}
+                response = (Envelope) input.readObject();
+                if (response.getMessage().equals("OK"))
+                    System.out.printf("\nFile data upload successful\n");
+                else {
+                    System.out.printf("\nUpload failed: %s\n", response.getMessage());
+                    return false;
+                }
+            } else {
+                System.out.printf("Upload failed: %s\n", response.getMessage());
+                return false;
+            }
+        } catch (IOException | ClassNotFoundException e1) {
+            System.err.println("Error: " + e1.getMessage());
+            e1.printStackTrace(System.err);
+            return false;
+        }
+        return true;
+    }
 }

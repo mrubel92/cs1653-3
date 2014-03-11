@@ -1,3 +1,4 @@
+
 import java.awt.Component;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -12,83 +13,85 @@ import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
 
 public class RunClient extends JFrame {
-	private static final long serialVersionUID = -7140891447099041238L;
 
-	protected static GroupClient gclient;
-	protected static FileClient fclient;
-	protected static UserToken userToken;
-	protected static final String NAME_PATTERN = "\\w{1,16}";
+    private static final long serialVersionUID = -7140891447099041238L;
 
-	// Constructor. Instantiates the GroupClient and tries to connect.
-	public RunClient() {
-		gclient = new GroupClient();
-		fclient = new FileClient();
-		initGUI();
-	}
+    protected static GroupClient gclient;
+    protected static FileClient fclient;
+    protected static UserToken userToken;
+    protected static final String NAME_PATTERN = "\\w{1,16}";
 
-	// Main
-	public static void main(String[] args) {
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				RunClient rc = new RunClient();
-				rc.setVisible(true);
-			}
-		});
-	}
+    // Constructor. Instantiates the GroupClient and tries to connect.
+    public RunClient() {
+        gclient = new GroupClient();
+        fclient = new FileClient();
+        initGUI();
+    }
 
-	// Adds all the components to the main frame.
-	private void initGUI() {
+    // Main
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                RunClient rc = new RunClient();
+                rc.setVisible(true);
+            }
+        });
+    }
 
-		JTabbedPane tabbedPanel = new JTabbedPane();
+    // Adds all the components to the main frame.
+    private void initGUI() {
 
-		JComponent homePanel = new HomePanel(tabbedPanel);
-		tabbedPanel.addTab("Home", homePanel);
+        JTabbedPane tabbedPanel = new JTabbedPane();
 
-		JComponent groupPanel = new GroupPanel();
-		tabbedPanel.addTab("Groups", groupPanel);
+        JComponent homePanel = new HomePanel(tabbedPanel);
+        tabbedPanel.addTab("Home", homePanel);
 
-		JComponent fserverPanel = new FileServerPanel();
-		tabbedPanel.addTab("File Servers", fserverPanel);
+        JComponent groupPanel = new GroupPanel();
+        tabbedPanel.addTab("Groups", groupPanel);
 
-		tabbedPanel.setEnabledAt(1, false);
-		tabbedPanel.setEnabledAt(2, false);
+        JComponent fserverPanel = new FileServerPanel();
+        tabbedPanel.addTab("File Servers", fserverPanel);
 
-		add(tabbedPanel);
+        tabbedPanel.setEnabledAt(1, false);
+        tabbedPanel.setEnabledAt(2, false);
 
-		setTitle("CryptoShare");
-		setSize(800, 600);
-		setLocationRelativeTo(null);
-		addWindowListener(new WindowAdapter() {
-			public void windowClosing(WindowEvent event) {
-				if(gclient.isConnected()) 
-					gclient.disconnect();
-				if(fclient.isConnected())
-					fclient.disconnect();
-				System.exit(0);
-			}
-		});
-	}
+        add(tabbedPanel);
 
-	protected static String askForValidInput(String question, Component c) {
-		String input;
-		Pattern p = Pattern.compile(NAME_PATTERN);
-		input = JOptionPane.showInputDialog(question);
-		if (input != null) {
-			Matcher m = p.matcher(input);
-			if (!m.matches())
-				JOptionPane.showMessageDialog(c, "Invalid input");
-			else
-				return input.toUpperCase();
-		}
-		return null;
-	}
-	
-	protected static List<String> getGroups() {
-		List<String> groups = RunClient.gclient.listGroups(userToken);
-		if (groups == null)
-			JOptionPane.showMessageDialog(null, "Failed to retreive member list for group: "
-					+ userToken.getSubject());
-		return groups;
-	}
+        setTitle("CryptoShare");
+        setSize(800, 600);
+        setLocationRelativeTo(null);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent event) {
+                if (gclient.isConnected())
+                    gclient.disconnect();
+                if (fclient.isConnected())
+                    fclient.disconnect();
+                System.exit(0);
+            }
+        });
+    }
+
+    protected static String askForValidInput(String question, Component c) {
+        String input;
+        Pattern p = Pattern.compile(NAME_PATTERN);
+        input = JOptionPane.showInputDialog(question);
+        if (input != null) {
+            Matcher m = p.matcher(input);
+            if (!m.matches())
+                JOptionPane.showMessageDialog(c, "Invalid input");
+            else
+                return input.toUpperCase();
+        }
+        return null;
+    }
+
+    protected static List<String> getGroups() {
+        List<String> groups = RunClient.gclient.listGroups(userToken);
+        if (groups == null)
+            JOptionPane.showMessageDialog(null, "Failed to retreive member list for group: "
+                    + userToken.getSubject());
+        return groups;
+    }
 }

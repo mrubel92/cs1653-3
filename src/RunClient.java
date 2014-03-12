@@ -59,7 +59,7 @@ public class RunClient extends JFrame {
         add(tabbedPanel);
 
         setTitle("CryptoShare");
-        setSize(800, 600);
+        setSize(800, 400);
         setLocationRelativeTo(null);
         addWindowListener(new WindowAdapter() {
             @Override

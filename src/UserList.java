@@ -5,7 +5,6 @@ import java.security.Security;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.MessageDigest;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public class UserList implements java.io.Serializable {
 
@@ -34,7 +33,7 @@ public class UserList implements java.io.Serializable {
     }
 
     public static byte[] hashPassword(String original) {
-        Security.addProvider(new BouncyCastleProvider());
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         byte[] in = original.getBytes();
         byte[] encrypted;
         try {

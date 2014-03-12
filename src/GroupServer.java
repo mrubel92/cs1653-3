@@ -127,9 +127,9 @@ public class GroupServer extends Server {
         String username;
         try (Scanner console = new Scanner(System.in)) {
             username = "";
-            while (!console.hasNext("[\\w]+")) {
+            while (!console.hasNext("\\w{6,16}")) {
                 System.out
-                        .println("\nUsername can only have letters, numbers, and underscores.\nEnter your username (max length = 16):");
+                        .println("\nUsername can only have letters, numbers, and underscores.\nEnter your username (minimum length = 3, max length = 16):");
                 console.next();
             }
             username = console.next().toUpperCase();

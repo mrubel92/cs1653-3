@@ -32,12 +32,13 @@ public interface GroupClientInterface {
      * security checks.
      *
      * @param username The user whose token is being requested
+     * @param password user's password
      *
      * @return A UserToken describing the permissions of "username." If this
      * user does not exist, a null value will be returned.
      *
      */
-    public UserToken getToken(final String username);
+    public UserToken getToken(final String username, final String password);
 
     /**
      * Creates a new user. This method should only succeed if the user invoking

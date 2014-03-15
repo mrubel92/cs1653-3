@@ -35,15 +35,52 @@ public class GroupThread extends Thread {
                 System.out.println("\nMessage received from client: " + message.toString());
                 Envelope response;
                 String username;
+                String password;
 
                 switch (message.getMessage()) {
+                    case "CHECK_PASS":
+                        username = (String) message.getObjContents().get(0); // Get the username
+
+                        if (username == null) {
+                            response = new Envelope("FAIL");
+                        } else {
+                            if(my_gs.userList.checkPassword(username, "PASSWORD"))
+                                response = new Envelope("NEW");
+                            else
+                                response = new Envelope("NOT_NEW"); 
+                        }
+                        output.reset();
+                        output.writeObject(response);
+                        System.out.println("CHECK_PASS response sent to client: " + response.toString());
+                        break;
+                    case "CREATE_PASS":
+                        if (message.getObjContents().size() < 2)
+                            response = new Envelope("FAIL");
+                        else {
+                            response = new Envelope("FAIL");
+                            if (message.getObjContents().get(0) != null) {
+                                if (message.getObjContents().get(1) != null) {
+                                    username = (String) message.getObjContents().get(0); // Get the username
+                                    password = (String) message.getObjContents().get(1);
+                                    if (username != null && password != null) {
+                                        my_gs.userList.addUser(username, password);
+                                        response = new Envelope("OK");
+                                    }
+                                }
+                            }
+                        }
+                        output.reset();
+                        output.writeObject(response);
+                        System.out.println("CREATE_PASS response sent to client: " + response.toString());
+                        break;
                     case "GET": // Client wants a token
                         username = (String) message.getObjContents().get(0); // Get the username
-                        if (username == null) {
+                        password = (String) message.getObjContents().get(1);
+                        if (username == null || password == null) {
                             response = new Envelope("FAIL");
                             response.addObject(null);
                         } else {
-                            UserToken yourToken = createToken(username); // Create a token
+                            UserToken yourToken = createToken(username, password); // Create a token
                             // Respond to the client. On error, the client will receive a null token
                             response = new Envelope("OK");
                             response.addObject(yourToken);
@@ -57,15 +94,13 @@ public class GroupThread extends Thread {
                             response = new Envelope("FAIL");
                         else {
                             response = new Envelope("FAIL");
-
                             if (message.getObjContents().get(0) != null)
                                 if (message.getObjContents().get(1) != null)
                                     if (message.getObjContents().get(2) != null) {
 
                                         username = (String) message.getObjContents().get(0); // Extract the username
                                         UserToken yourToken = (UserToken) message.getObjContents().get(1); // Extract the token
-                                        String password = (String) message.getObjContents().get(2);
-                                        if (createUser(username, yourToken, password))
+                                        if (createUser(username, yourToken))
                                             response = new Envelope("OK"); // Success
                                     }
                         }
@@ -78,7 +113,6 @@ public class GroupThread extends Thread {
                             response = new Envelope("FAIL");
                         else {
                             response = new Envelope("FAIL");
-
                             if (message.getObjContents().get(0) != null)
                                 if (message.getObjContents().get(1) != null) {
                                     username = (String) message.getObjContents().get(0); // Extract the username
@@ -97,7 +131,6 @@ public class GroupThread extends Thread {
                             response = new Envelope("FAIL");
                         else {
                             response = new Envelope("FAIL");
-
                             if (message.getObjContents().get(0) != null)
                                 if (message.getObjContents().get(1) != null) {
                                     String groupname = (String) message.getObjContents().get(0); // Extract the groupname
@@ -333,18 +366,20 @@ public class GroupThread extends Thread {
     }
 
     // Method to create tokens
-    private UserToken createToken(String username) {
+    private UserToken createToken(String username, String password) {
         // Check that user exists
         if (my_gs.userList.checkUser(username)) {
-            // Issue a new token with server's name, user's name, and user's groups
-            UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
-            return yourToken;
-        } else
-            return null;
+            if(my_gs.userList.checkPassword(username, password)) {
+                // Issue a new token with server's name, user's name, and user's groups
+                UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
+                return yourToken;
+            }
+        }
+        return null;
     }
 
     // Method to create a user
-    private boolean createUser(String username, UserToken yourToken, String password) {
+    private boolean createUser(String username, UserToken yourToken) {
         String requester = yourToken.getSubject();
 
         // Check if requester exists

@@ -77,14 +77,20 @@ public class GroupServer extends Server {
             userStream = new ObjectInputStream(fis);
             userList = (UserList) userStream.readObject();
         } catch (FileNotFoundException e) {
-            System.out.println("UserList File Does Not Exist. Creating UserList...");
-            System.out.println("No users currently exist. Your account will be the administrator.");
-            System.out.print("Enter your username (max length = 16):\n");
-            String username = askForValidUsername();
-
+            String username;
+            String password;
+            try (Scanner console = new Scanner(System.in)) {
+                System.out.println("UserList File Does Not Exist. Creating UserList...");
+                System.out.println("No users currently exist. Your account will be the administrator.");
+                System.out.print("Enter your username (min length = 3, max length = 16):\n");
+                username = askForValidInput("\\w{3,16}", true, console);
+                System.out.print("Enter your password (min length = 6, max length = 16):\n");
+                password = askForValidInput("[ -~]{6,16}", false, console);
+            }
+            
             // Create a new list, add current user to the ADMIN group. They now own the ADMIN group.
             userList = new UserList();
-            userList.addUser(username, "PASSWORD");
+            userList.addUser(username, password);
             userList.addGroup(username, "ADMIN");
             userList.addOwnership(username, "ADMIN");
 
@@ -117,27 +123,28 @@ public class GroupServer extends Server {
             System.exit(-1);
         }
     }
-
+    
     /**
-     * Asks user for a valid username.
+     * Asks user for a valid password.
      *
-     * @return a valid username
+     * @return a valid password
      */
-    private String askForValidUsername() {
-        String username;
-        try (Scanner console = new Scanner(System.in)) {
-            username = "";
-            while (!console.hasNext("\\w{6,16}")) {
+    private String askForValidInput(String regex, boolean username, Scanner console) {
+        String input;
+            input = "";
+            while (!console.hasNext(regex)) {
                 System.out
-                        .println("\nUsername can only have letters, numbers, and underscores.\nEnter your username (minimum length = 3, max length = 16):");
+                        .println("Bad input format, try again.\n(minimum username length = 3, minimum password length = 6, max length = 16):");
                 console.next();
             }
-            username = console.next().toUpperCase();
-        }
+            if(username)
+                input = console.next().toUpperCase();
+            else
+                input = console.next();
 
-        if (username.length() > MAX_INPUT_LENGTH)
-            return username.substring(0, MAX_INPUT_LENGTH);
+        if (input.length() > MAX_INPUT_LENGTH)
+            return input.substring(0, MAX_INPUT_LENGTH);
         else
-            return username;
+            return input;
     }
 }

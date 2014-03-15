@@ -6,8 +6,53 @@ import java.util.List;
 
 public class GroupClient extends Client implements GroupClientInterface {
 
+    public boolean checkNewPassword(String username) {
+        try {
+            Envelope message, response;
+            message = new Envelope("CHECK_PASS");
+            message.addObject(username);
+            System.out.println("\nCHECK_PASS message sent to Group Server: " + message.toString());
+            output.reset();
+            output.writeObject(message);
+            
+            response = (Envelope) input.readObject();
+            System.out.println("Message received from Group Server: " + response.toString());     
+            
+            if (response.getMessage().equals("NEW")) {
+                return true;
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return false;
+    }
+    
+    public boolean createNewPassword(String username, String newPassword) {
+         try {
+            Envelope message, response;
+            message = new Envelope("CREATE_PASS");
+            message.addObject(username);
+            message.addObject(newPassword);
+            System.out.println("\nCREATE_PASS message sent to Group Server: " + message.toString());
+            output.reset();
+            output.writeObject(message);
+            
+            response = (Envelope) input.readObject();
+            System.out.println("Message received from Group Server: " + response.toString());     
+            
+            if (response.getMessage().equals("OK")) {
+                return true;
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return false;
+    }
+    
     @Override
-    public UserToken getToken(String username) {
+    public UserToken getToken(String username, String password) {
         try {
             UserToken token;
             Envelope message, response;
@@ -15,6 +60,7 @@ public class GroupClient extends Client implements GroupClientInterface {
             // Tell the server to return a token.
             message = new Envelope("GET");
             message.addObject(username); // Add user name string
+            message.addObject(password);
             System.out.println("\nGET message sent to Group Server: " + message.toString());
             output.reset();
             output.writeObject(message);

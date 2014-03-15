@@ -1,61 +1,50 @@
 /* This list represents the users on the server */
 
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.security.Security;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class UserList implements java.io.Serializable {
 
     private static final long serialVersionUID = 7600343803563417992L;
     private final Hashtable<String, User> list = new Hashtable<>();
+    private static final int SALT_LENGTH = 16;
 
     public synchronized void addUser(String username, String password) {
-        //generate salt
-        Random r = new Random();
-        String salt = null;
-        char c;
-        byte[] hashedpass;
-        for (int i = 0; i < 16; i++) {
-            c = (char) (r.nextInt(26) + 'a');
-            salt += c;
-        }
-        String tempPassword = password;
-        tempPassword += salt;
-        hashedpass = hashPassword(password);
-        if (hashedpass != null) {
-            User newUser = new User(hashedpass, salt);
-            list.put(username, newUser);
-        } else {
-            //don't create new user
-        }
+        // Generate salt
+        SecureRandom r = new SecureRandom();
+        byte[] salt = new byte[SALT_LENGTH];
+        r.nextBytes(salt);
+        byte[] hashedpass = hashPassword(password, salt);
+        User newUser = new User(hashedpass, salt);
+        list.put(username, newUser);
     }
 
-    public static byte[] hashPassword(String original) {
+    public static byte[] hashPassword(String password, byte[] salt) {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        byte[] in = original.getBytes();
-        byte[] encrypted;
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-1", "BC");
-            digest.update(in);
-            encrypted = digest.digest();
-        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-            encrypted = null;
+            digest.reset();
+            digest.update(salt);
+            return digest.digest(password.getBytes("UTF-8"));
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | UnsupportedEncodingException ex) {
+            Logger.getLogger(UserList.class.getName()).log(Level.SEVERE, null, ex);
         }
-
-        return encrypted;
+        return null;
     }
 
     public synchronized boolean checkPassword(String username, String password) {
-        String salt = list.get(username).getSalt();
-        String tempPassword = password;
-        tempPassword += salt;
-        byte[] hashedpass = hashPassword(password);
-        if (hashedpass != null)
-            return list.get(username).checkPassword(hashedpass.toString());
-        else
+        if(list.get(username) == null)
             return false;
+        byte[] salt = list.get(username).getSalt();
+        byte[] hashedpass = hashPassword(password, salt);
+        return list.get(username).checkPassword(hashedpass);
     }
 
     public synchronized void deleteUser(String username) {
@@ -95,22 +84,22 @@ public class UserList implements java.io.Serializable {
         private static final long serialVersionUID = -6699986336399821598L;
         private final ArrayList<String> groups;
         private final ArrayList<String> ownership;
-        private final char[] hashedPassword;
-        private final String salt;
+        private final byte[] hashedPassword;
+        private final byte[] salt;
 
-        public User(byte[] pass, String psalt) {
+        public User(byte[] pass, byte[] psalt) {
             groups = new ArrayList<>();
             ownership = new ArrayList<>();
-            hashedPassword = pass.toString().toCharArray();
+            hashedPassword = pass;
             salt = psalt;
         }
 
-        public String getSalt() {
+        public byte[] getSalt() {
             return salt;
         }
 
-        public boolean checkPassword(String userPass) {
-            return hashedPassword.toString().equals(userPass);
+        public boolean checkPassword(byte[] userPass) {
+            return Arrays.equals(userPass, hashedPassword);
         }
 
         public ArrayList<String> getGroups() {

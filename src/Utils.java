@@ -10,6 +10,7 @@ import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
@@ -25,8 +26,9 @@ public class Utils {
 
     static {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        
+
         // Diffie-Hellman
+        // https://svn.apache.org/repos/asf/directory/sandbox/erodriguez/kerberos-pkinit/src/main/java/org/apache/directory/server/kerberos/pkinit/DhGroup.java
         StringBuilder sb = new StringBuilder();
         sb.append("FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1");
         sb.append("29024E088A67CC74020BBEA63B139B22514A08798E3404DD");
@@ -47,43 +49,86 @@ public class Utils {
     public static KeyPair genDHKeyPair() {
         KeyPairGenerator kpg;
         try {
-            kpg = KeyPairGenerator.getInstance("DH");
-            DHParameterSpec dhSpec = new DHParameterSpec(Utils.prime, Utils.generator);
+            kpg = KeyPairGenerator.getInstance("DH", "BC");
+            DHParameterSpec dhSpec = new DHParameterSpec(prime, generator);
             kpg.initialize(dhSpec);
             return kpg.generateKeyPair();
-        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException e) {
+        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException | NoSuchProviderException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
         return null;
     }
 
-    public static PrivateKey getPrivKey(String filename) throws FileNotFoundException, IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        File f = new File(filename);
-        FileInputStream fis = new FileInputStream(f);
-        DataInputStream dis = new DataInputStream(fis);
-        byte[] keyBytes = new byte[(int) f.length()];
-        dis.readFully(keyBytes);
-        dis.close();
+    /**
+     * Load Group Server's private key that was generated offline
+     * http://codeartisan.blogspot.com/2009/05/public-key-cryptography-in-java.html
+     *
+     * @param filename
+     * @return
+     */
+    public static PrivateKey getPrivKey(String filename) {
+        try {
+            File f = new File(filename);
+            FileInputStream fis = new FileInputStream(f);
+            byte[] keyBytes;
+            try (DataInputStream dis = new DataInputStream(fis)) {
+                keyBytes = new byte[(int) f.length()];
+                dis.readFully(keyBytes);
+            }
 
-        PKCS8EncodedKeySpec spec
-                = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        return kf.generatePrivate(spec);
+            PKCS8EncodedKeySpec spec
+                    = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA", "BC");
+            return kf.generatePrivate(spec);
+        } catch (NoSuchProviderException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (FileNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (IOException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
     }
 
-    public static PublicKey getPubKey(String filename) throws FileNotFoundException, IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        File f = new File(filename);
-        FileInputStream fis = new FileInputStream(f);
-        DataInputStream dis = new DataInputStream(fis);
-        byte[] keyBytes = new byte[(int) f.length()];
-        dis.readFully(keyBytes);
-        dis.close();
-
-        X509EncodedKeySpec spec
-                = new X509EncodedKeySpec(keyBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        return kf.generatePublic(spec);
+    /**
+     * Load Group Server's public key that was generated offline
+     * http://codeartisan.blogspot.com/2009/05/public-key-cryptography-in-java.html
+     *
+     * @param filename
+     * @return
+     */
+    public static PublicKey getPubKey(String filename) {
+        FileInputStream fis = null;
+        try {
+            File f = new File(filename);
+            fis = new FileInputStream(f);
+            DataInputStream dis = new DataInputStream(fis);
+            byte[] keyBytes = new byte[(int) f.length()];
+            dis.readFully(keyBytes);
+            dis.close();
+            X509EncodedKeySpec spec
+                    = new X509EncodedKeySpec(keyBytes);
+            KeyFactory kf = KeyFactory.getInstance("RSA", "BC");
+            return kf.generatePublic(spec);
+        } catch (FileNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchProviderException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } finally {
+            try {
+                fis.close();
+            } catch (IOException e) {
+                System.err.println("Error: " + e.getMessage());
+                e.printStackTrace(System.err);
+            }
+        }
+        return null;
     }
-    
+
 }

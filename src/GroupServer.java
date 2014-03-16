@@ -10,10 +10,8 @@ import java.io.ObjectInputStream;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 
 public class GroupServer extends Server {
@@ -27,13 +25,8 @@ public class GroupServer extends Server {
     protected static PublicKey gsPubKey;
 
     static {
-        try {
-            gsPrivKey = Utils.getPrivKey("private_key.der");
-            gsPubKey = Utils.getPubKey("public_key.der");
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
-            e.printStackTrace(System.err);
-        }
+        gsPrivKey = Utils.getPrivKey("private_key.der");
+        gsPubKey = Utils.getPubKey("public_key.der");
     }
 
     public GroupServer() {

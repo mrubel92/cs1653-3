@@ -1,4 +1,5 @@
 
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -7,8 +8,10 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -16,6 +19,8 @@ import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 
 public abstract class Client {
@@ -31,12 +36,7 @@ public abstract class Client {
     protected static PublicKey gsPubKey;
 
     static {
-        try {
-            gsPubKey = Utils.getPubKey("public_key.der");
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
-            e.printStackTrace(System.err);
-        }
+        gsPubKey = Utils.getPubKey("public_key.der");
     }
 
     public boolean connect(final String server, final int port) {
@@ -85,16 +85,17 @@ public abstract class Client {
         sr.nextBytes(nonce);
 
         // Client DH key pair
-        KeyPair kp = Utils.genDHKeyPair();
-        PrivateKey clientPrivKey = kp.getPrivate();
-        PublicKey clientPubKey = kp.getPublic();
+        KeyPair dhKP = Utils.genDHKeyPair();
+        PrivateKey clientDHPrivKey = dhKP.getPrivate();
+        PublicKey clientDHPubKey = dhKP.getPublic();
 
         try {
             Envelope message, response;
 
+            // Send server nonce to sign and client's DH public key
             message = new Envelope("DH");
             message.addObject(nonce);
-            message.addObject(clientPubKey.getEncoded());
+            message.addObject(clientDHPubKey.getEncoded());
             System.out.println("\nDH message sent to Group Server: " + message.toString());
             output.reset();
             output.writeObject(message);
@@ -105,13 +106,37 @@ public abstract class Client {
 
             // Successful response
             if (response.getMessage().equals("OK")) {
-                Signature sig = Signature.getInstance("SHA1withRSA");
+                byte[] signedNonce = (byte[]) response.getObjContents().get(0);
+                byte[] servDHPubKeyBytes = (byte[]) response.getObjContents().get(1);
+                
+                // Verify nonce first
+                Signature sig = Signature.getInstance("SHA1withRSA", "BC");
+                   
                 sig.initVerify(gsPubKey);
                 sig.update(nonce);
+                if(sig.verify(signedNonce))
+                    System.out.println("Nonce is verified");
+                else {
+                    System.out.println("Nonce not verified");
+                    return false;
+                }
+                
+                // Now get server's DH public key and create the shared AES key
+                X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(servDHPubKeyBytes);
+                KeyFactory kf = KeyFactory.getInstance("DH", "BC");
+                PublicKey servDHPublicKey = kf.generatePublic(x509KeySpec);
+                
+                KeyAgreement ka = KeyAgreement.getInstance("DH", "BC");
+                ka.init(clientDHPrivKey);
+                ka.doPhase(servDHPublicKey, true);
+
+                // Generate the secret key
+                secretKey = ka.generateSecret("AES");
+                System.out.println("SECRET KEY: " + Base64.encode(secretKey.getEncoded()));
 
                 return true;
             }
-        } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
+        } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException | InvalidKeyException | SignatureException | InvalidKeySpecException | NoSuchProviderException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }

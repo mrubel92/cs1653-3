@@ -11,6 +11,7 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
@@ -479,6 +480,7 @@ public class GroupThread extends Thread {
             return false; // requester does not exist
     }
 
+    // http://exampledepot.8waytrips.com/egs/javax.crypto/KeyAgree.html
     private Envelope diffieHellman(byte[] nonce, byte[] clientPubKeyBytes) {
         Envelope response = new Envelope("FAIL");
         try {
@@ -486,35 +488,33 @@ public class GroupThread extends Thread {
             Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
             
             // Server's pub and priv DH key pair
-            KeyPair kp = Utils.genDHKeyPair();
-            PrivateKey servPrivKey = kp.getPrivate();
-            PublicKey servPubKey = kp.getPublic();
+            KeyPair dhKP = Utils.genDHKeyPair();
+            PrivateKey servDHPrivKey = dhKP.getPrivate();
+            PublicKey servDHPubKey = dhKP.getPublic();
             
             // Convert the client's DH public key bytes into a PublicKey object
             X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(clientPubKeyBytes);
-            KeyFactory keyFact = KeyFactory.getInstance("DH");
+            KeyFactory keyFact = KeyFactory.getInstance("DH", "BC");
             PublicKey clientPubKey = keyFact.generatePublic(x509KeySpec);
             
-            // Prepare to generate the secret key with the server's DH private key and client's DH public key
-            KeyAgreement ka = KeyAgreement.getInstance("DH");
-            ka.init(servPrivKey);
+            // Prepare to generate the AES secret key with the server's DH private key and client's DH public key
+            KeyAgreement ka = KeyAgreement.getInstance("DH", "BC");
+            ka.init(servDHPrivKey);
             ka.doPhase(clientPubKey, true);
             
-            // Specify the type of key to generate;
-            String algorithm = "AES";
-            
             // Generate the secret key
-            secretKey = ka.generateSecret(algorithm);
+            secretKey = ka.generateSecret("AES");
             
-            // Send pub key amd nonce back to client
-            Signature sig = Signature.getInstance("SHA1withRSA");
+            // Send pub key and nonce back to client
+            Signature sig = Signature.getInstance("SHA1withRSA", "BC");
             sig.initSign(GroupServer.gsPrivKey);
             sig.update(nonce);
-            byte[] sigBytes = sig.sign();
+            byte[] signedNonce = sig.sign();
             
-            response.addObject(sigBytes);
-            response.addObject(servPubKey.getEncoded());
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | SignatureException e) {
+            response.addObject(signedNonce);
+            response.addObject(servDHPubKey.getEncoded());
+            return response;
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | SignatureException | NoSuchProviderException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }

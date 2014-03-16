@@ -210,28 +210,28 @@ public class HomePanel extends JPanel {
                 panel.add(password);
                 String[] options = new String[]{"OK", "Cancel"};
                 int option = JOptionPane.showOptionDialog(null, panel, "New Password",
-                                         JOptionPane.NO_OPTION, JOptionPane.PLAIN_MESSAGE,
-                                         null, options, options[1]);
+                                                          JOptionPane.NO_OPTION, JOptionPane.PLAIN_MESSAGE,
+                                                          null, options, options[1]);
                 char[] pass;
-                if(option == 0) // OK button
+                if (option == 0) // OK button
                     pass = password.getPassword();
                 else
                     return;
-                
+
                 String passString = new String(pass);
-                if(passString.equalsIgnoreCase("PASSWORD")) {
+                if (passString.equalsIgnoreCase("PASSWORD")) {
                     JOptionPane.showMessageDialog(null, "Pick a better password", "Bad Password",
-                                  JOptionPane.OK_CANCEL_OPTION);
+                                                  JOptionPane.OK_CANCEL_OPTION);
                     return;
                 }
-                
+
                 Matcher m2 = p2.matcher(passString);
                 if (!m2.matches()) {
                     JOptionPane.showMessageDialog(null, "Password must be between 6 and 16 characters long", "Bad Password",
                                                   JOptionPane.OK_CANCEL_OPTION);
                     return;
                 }
-                
+
                 String un = username.getText().toUpperCase();
                 if (!RunClient.gclient.checkNewPassword(un)) {
                     JOptionPane.showMessageDialog(null, "You are not a new user", "Not A New User",
@@ -239,16 +239,16 @@ public class HomePanel extends JPanel {
                     return;
                 }
 
-                if(!RunClient.gclient.createNewPassword(un, passString)) {
+                if (!RunClient.gclient.createNewPassword(un, passString)) {
                     JOptionPane.showMessageDialog(null, "Failed to create your password", "Failed",
-                              JOptionPane.OK_CANCEL_OPTION);
+                                                  JOptionPane.OK_CANCEL_OPTION);
                     return;
                 }
-                
+
                 JOptionPane.showMessageDialog(null,
-                              "You can now login with your new password", "Password Created",
-                              JOptionPane.OK_CANCEL_OPTION);
-                
+                                              "You can now login with your new password", "Password Created",
+                                              JOptionPane.OK_CANCEL_OPTION);
+
                 btnNewUser.setEnabled(false);
             }
         });

@@ -7,13 +7,27 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Security;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import javax.crypto.KeyAgreement;
+import javax.crypto.SecretKey;
 
 public class GroupThread extends Thread {
 
     private final Socket socket;
     private final GroupServer my_gs;
+    protected SecretKey secretKey;
 
     public GroupThread(Socket _socket, GroupServer _gs) {
         socket = _socket;
@@ -38,17 +52,32 @@ public class GroupThread extends Thread {
                 String password;
 
                 switch (message.getMessage()) {
+                    case "DH":
+                        if (message.getObjContents().size() < 2)
+                            response = new Envelope("FAIL");
+                        else {
+                            response = new Envelope("FAIL");
+                            if (message.getObjContents().get(0) != null)
+                                if (message.getObjContents().get(1) != null) {
+                                    byte[] nonce = (byte[]) message.getObjContents().get(0);
+                                    byte[] clientPubKeyBytes = (byte[]) message.getObjContents().get(1);
+                                    if (nonce != null && clientPubKeyBytes != null)
+                                        response = diffieHellman(nonce, clientPubKeyBytes);
+                                }
+                        }
+                        output.reset();
+                        output.writeObject(response);
+                        System.out.println("DH response sent to client: " + response.toString());
+                        break;
                     case "CHECK_PASS":
                         username = (String) message.getObjContents().get(0); // Get the username
 
-                        if (username == null) {
+                        if (username == null)
                             response = new Envelope("FAIL");
-                        } else {
-                            if(my_gs.userList.checkPassword(username, "PASSWORD"))
-                                response = new Envelope("NEW");
-                            else
-                                response = new Envelope("NOT_NEW"); 
-                        }
+                        else if (my_gs.userList.checkPassword(username, "PASSWORD"))
+                            response = new Envelope("NEW");
+                        else
+                            response = new Envelope("NOT_NEW");
                         output.reset();
                         output.writeObject(response);
                         System.out.println("CHECK_PASS response sent to client: " + response.toString());
@@ -58,7 +87,7 @@ public class GroupThread extends Thread {
                             response = new Envelope("FAIL");
                         else {
                             response = new Envelope("FAIL");
-                            if (message.getObjContents().get(0) != null) {
+                            if (message.getObjContents().get(0) != null)
                                 if (message.getObjContents().get(1) != null) {
                                     username = (String) message.getObjContents().get(0); // Get the username
                                     password = (String) message.getObjContents().get(1);
@@ -67,7 +96,6 @@ public class GroupThread extends Thread {
                                         response = new Envelope("OK");
                                     }
                                 }
-                            }
                         }
                         output.reset();
                         output.writeObject(response);
@@ -85,6 +113,7 @@ public class GroupThread extends Thread {
                             response = new Envelope("OK");
                             response.addObject(yourToken);
                         }
+
                         output.reset();
                         output.writeObject(response);
                         System.out.println("GET response sent to client: " + response.toString());
@@ -253,7 +282,7 @@ public class GroupThread extends Thread {
         } catch (EOFException eof) {
             // Do nothing, the client connected to this thread is done talking
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+            System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
     }
@@ -368,13 +397,12 @@ public class GroupThread extends Thread {
     // Method to create tokens
     private UserToken createToken(String username, String password) {
         // Check that user exists
-        if (my_gs.userList.checkUser(username)) {
-            if(my_gs.userList.checkPassword(username, password)) {
+        if (my_gs.userList.checkUser(username))
+            if (my_gs.userList.checkPassword(username, password)) {
                 // Issue a new token with server's name, user's name, and user's groups
                 UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
                 return yourToken;
             }
-        }
         return null;
     }
 
@@ -449,5 +477,47 @@ public class GroupThread extends Thread {
                 return false; // requester is not an administer
         } else
             return false; // requester does not exist
+    }
+
+    private Envelope diffieHellman(byte[] nonce, byte[] clientPubKeyBytes) {
+        Envelope response = new Envelope("FAIL");
+        try {
+            response = new Envelope("OK");
+            Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+            
+            // Server's pub and priv DH key pair
+            KeyPair kp = Utils.genDHKeyPair();
+            PrivateKey servPrivKey = kp.getPrivate();
+            PublicKey servPubKey = kp.getPublic();
+            
+            // Convert the client's DH public key bytes into a PublicKey object
+            X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(clientPubKeyBytes);
+            KeyFactory keyFact = KeyFactory.getInstance("DH");
+            PublicKey clientPubKey = keyFact.generatePublic(x509KeySpec);
+            
+            // Prepare to generate the secret key with the server's DH private key and client's DH public key
+            KeyAgreement ka = KeyAgreement.getInstance("DH");
+            ka.init(servPrivKey);
+            ka.doPhase(clientPubKey, true);
+            
+            // Specify the type of key to generate;
+            String algorithm = "AES";
+            
+            // Generate the secret key
+            secretKey = ka.generateSecret(algorithm);
+            
+            // Send pub key amd nonce back to client
+            Signature sig = Signature.getInstance("SHA1withRSA");
+            sig.initSign(GroupServer.gsPrivKey);
+            sig.update(nonce);
+            byte[] sigBytes = sig.sign();
+            
+            response.addObject(sigBytes);
+            response.addObject(servPubKey.getEncoded());
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | SignatureException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return response;
     }
 }

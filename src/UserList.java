@@ -7,8 +7,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class UserList implements java.io.Serializable {
 
@@ -18,9 +16,9 @@ public class UserList implements java.io.Serializable {
 
     public synchronized void addUser(String username, String password) {
         // Generate salt
-        SecureRandom r = new SecureRandom();
+        SecureRandom sr = new SecureRandom();
         byte[] salt = new byte[SALT_LENGTH];
-        r.nextBytes(salt);
+        sr.nextBytes(salt);
         byte[] hashedpass = hashPassword(password, salt);
         User newUser = new User(hashedpass, salt);
         list.put(username, newUser);
@@ -33,14 +31,15 @@ public class UserList implements java.io.Serializable {
             digest.reset();
             digest.update(salt);
             return digest.digest(password.getBytes("UTF-8"));
-        } catch (NoSuchAlgorithmException | NoSuchProviderException | UnsupportedEncodingException ex) {
-            Logger.getLogger(UserList.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | UnsupportedEncodingException e) {
+            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+            e.printStackTrace(System.err);
         }
         return null;
     }
 
     public synchronized boolean checkPassword(String username, String password) {
-        if(list.get(username) == null)
+        if (list.get(username) == null)
             return false;
         byte[] salt = list.get(username).getSalt();
         byte[] hashedpass = hashPassword(password, salt);

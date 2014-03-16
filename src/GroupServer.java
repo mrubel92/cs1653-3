@@ -2,6 +2,7 @@
  * If user list does not exists, it creates a new list and makes the user the server administrator.
  * On exit, the server saves the user list to file. 
  */
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -9,15 +10,31 @@ import java.io.ObjectInputStream;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 
 public class GroupServer extends Server {
 
     public static final int GROUP_SERVER_PORT = 8765;
-    public static final int MAX_INPUT_LENGTH = 16;
-    public UserList userList;
-    public GroupList groupList;
-    public String firstUser;
+    private static final int MAX_INPUT_LENGTH = 16;
+    protected UserList userList;
+    protected GroupList groupList;
+    private String firstUser;
+    protected static PrivateKey gsPrivKey;
+    protected static PublicKey gsPubKey;
+
+    static {
+        try {
+            gsPrivKey = Utils.getPrivKey("private_key.der");
+            gsPubKey = Utils.getPubKey("public_key.der");
+        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+            e.printStackTrace(System.err);
+        }
+    }
 
     public GroupServer() {
         super(GROUP_SERVER_PORT, "GROUP_SERVER");
@@ -29,7 +46,7 @@ public class GroupServer extends Server {
 
     @Override
     public void start() {
-		// Overwrote server.start() because if no user file exists, initial admin account needs to be created
+	// Overwrote server.start() because if no user file exists, initial admin account needs to be created
 
         // This runs a thread that saves the lists on program exit
         Runtime runtime = Runtime.getRuntime();
@@ -87,7 +104,7 @@ public class GroupServer extends Server {
                 System.out.print("Enter your password (min length = 6, max length = 16):\n");
                 password = askForValidInput("[ -~]{6,16}", false, console);
             }
-            
+
             // Create a new list, add current user to the ADMIN group. They now own the ADMIN group.
             userList = new UserList();
             userList.addUser(username, password);
@@ -123,7 +140,7 @@ public class GroupServer extends Server {
             System.exit(-1);
         }
     }
-    
+
     /**
      * Asks user for a valid password.
      *
@@ -131,16 +148,16 @@ public class GroupServer extends Server {
      */
     private String askForValidInput(String regex, boolean username, Scanner console) {
         String input;
-            input = "";
-            while (!console.hasNext(regex)) {
-                System.out
-                        .println("Bad input format, try again.\n(minimum username length = 3, minimum password length = 6, max length = 16):");
-                console.next();
-            }
-            if(username)
-                input = console.next().toUpperCase();
-            else
-                input = console.next();
+        input = "";
+        while (!console.hasNext(regex)) {
+            System.out
+                    .println("Bad input format, try again.\n(minimum username length = 3, minimum password length = 6, max length = 16):");
+            console.next();
+        }
+        if (username)
+            input = console.next().toUpperCase();
+        else
+            input = console.next();
 
         if (input.length() > MAX_INPUT_LENGTH)
             return input.substring(0, MAX_INPUT_LENGTH);

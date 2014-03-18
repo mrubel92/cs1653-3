@@ -1,31 +1,24 @@
 /* File worker thread handles the business of uploading, downloading, and removing files for clients with valid tokens */
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 
 public class FileThread extends Thread {
 
     private final Socket socket;
     private final FileServer my_fs;
 
-    protected SecretKey secretKey;
-    private IvParameterSpec ivSpec;
-
     public FileThread(Socket _socket, FileServer _fs) {
         socket = _socket;
         my_fs = _fs;
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
     @Override
@@ -35,12 +28,11 @@ public class FileThread extends Thread {
             // Announces connection and opens object streams
             System.out
                     .println("\n*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + " ***");
-            final DataInputStream input = new DataInputStream(socket.getInputStream());
-            final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
+            final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
+            final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 
             do {
-                Envelope message = Utils.readBytes(input, secretKey, ivSpec);
-
+                Envelope message = (Envelope) input.readObject();
                 System.out.println("\nMessage received from client: " + message.toString());
                 Envelope response = null;
                 List<String> usersFiles;
@@ -51,8 +43,6 @@ public class FileThread extends Thread {
 
                 // Handler to list files that this user is allowed to see
                 switch (message.getMessage()) {
-                    case "DH":
-                        break;
                     case "LFILES":
                         if (message.getObjContents().size() < 1)
                             response = new Envelope("FAIL-BADCONTENTS");
@@ -73,8 +63,8 @@ public class FileThread extends Thread {
                             response = new Envelope("OK");
                             response.addObject(usersFiles);
                         }
-
-                        Utils.sendBytes(output, response, secretKey);
+                        output.reset();
+                        output.writeObject(response);
                         System.out.println("LFILES response sent to client: " + response.toString());
                         break;
                     case "LGFILES":
@@ -107,8 +97,8 @@ public class FileThread extends Thread {
                                 }
                             }
                         }
-
-                        Utils.sendBytes(output, response, secretKey);
+                        output.reset();
+                        output.writeObject(response);
                         System.out.println("LGFILES response sent to client: " + response.toString());
                         break;
                     case "UPLOADF":
@@ -139,17 +129,15 @@ public class FileThread extends Thread {
                                         System.out.printf("Successfully created file %s\n", remotePath.replace('/', '_'));
 
                                         response = new Envelope("READY"); // Success
+                                        output.writeObject(response);
 
-                                        Utils.sendBytes(output, response, secretKey);
-                                        message = Utils.readBytes(input, secretKey, ivSpec);
-
+                                        message = (Envelope) input.readObject();
                                         while (message.getMessage().equals("CHUNK")) {
                                             fos.write((byte[]) message.getObjContents().get(0), 0, (Integer) message
                                                     .getObjContents().get(1));
                                             response = new Envelope("READY"); // Success
-
-                                            Utils.sendBytes(output, response, secretKey);
-                                            message = Utils.readBytes(input, secretKey, ivSpec);
+                                            output.writeObject(response);
+                                            message = (Envelope) input.readObject();
                                         }
 
                                         if (message.getMessage().equals("EOF")) {
@@ -164,8 +152,8 @@ public class FileThread extends Thread {
                                 }
                             }
                         }
-
-                        Utils.sendBytes(output, response, secretKey);
+                        output.reset();
+                        output.writeObject(response);
                         System.out.println("UPLOADF response sent to client: " + response.toString());
                         break;
                     case "DOWNLOADF":
@@ -175,13 +163,13 @@ public class FileThread extends Thread {
                         if (sf == null) {
                             System.out.printf("Error: File %s doesn't exist\n", remotePath);
                             response = new Envelope("ERROR_FILEMISSING");
-
-                            Utils.sendBytes(output, response, secretKey);
+                            output.reset();
+                            output.writeObject(response);
                         } else if (!t.getGroups().contains(sf.getGroup())) {
                             System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
                             response = new Envelope("ERROR_PERMISSION");
-
-                            Utils.sendBytes(output, response, secretKey);
+                            output.reset();
+                            output.writeObject(response);
                         } else
                             try {
                                 File f = new File("shared_files/_" + remotePath.replace('/', '_'));
@@ -189,8 +177,8 @@ public class FileThread extends Thread {
                                     System.out.printf("Error file %s missing from disk\n",
                                                       "_" + remotePath.replace('/', '_'));
                                     response = new Envelope("ERROR_NOTONDISK");
-
-                                    Utils.sendBytes(output, response, secretKey);
+                                    output.reset();
+                                    output.writeObject(response);
                                 } else {
                                     try (FileInputStream fis = new FileInputStream(f)) {
                                         do {
@@ -209,17 +197,19 @@ public class FileThread extends Thread {
                                             response.addObject(buf);
                                             response.addObject(new Integer(n));
 
-                                            Utils.sendBytes(output, response, secretKey);
-                                            message = Utils.readBytes(input, secretKey, ivSpec);
+                                            output.writeObject(response);
+
+                                            response = (Envelope) input.readObject();
                                         } while (fis.available() > 0);
                                     }
 
                                     // If server indicates success, return the member list
                                     if (message.getMessage().equals("DOWNLOADF")) {
                                         response = new Envelope("EOF");
+                                        output.reset();
+                                        output.writeObject(response);
 
-                                        Utils.sendBytes(output, response, secretKey);
-                                        message = Utils.readBytes(input, secretKey, ivSpec);
+                                        message = (Envelope) input.readObject();
                                         if (message.getMessage().equals("OK"))
                                             System.out.printf("File data upload successful\n");
                                         else
@@ -227,7 +217,7 @@ public class FileThread extends Thread {
                                     } else
                                         System.out.printf("Upload failed: %s\n", message.getMessage());
                                 }
-                            } catch (IOException e1) {
+                            } catch (IOException | ClassNotFoundException e1) {
                                 System.err.println("Error: " + message.getMessage());
                                 e1.printStackTrace(System.err);
                             }
@@ -266,8 +256,8 @@ public class FileThread extends Thread {
                                 e1.printStackTrace(System.err);
                                 response = new Envelope(e1.getMessage());
                             }
-                        
-                        Utils.sendBytes(output, response, secretKey);
+                        output.reset();
+                        output.writeObject(response);
                         System.out.println("DELETEF response sent to client: " + response.toString());
                         break;
                     case "DISCONNECT":
@@ -277,7 +267,7 @@ public class FileThread extends Thread {
             } while (proceed);
         } catch (EOFException eof) {
             // Do nothing, the client connected to this thread is done talking
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }

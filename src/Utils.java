@@ -2,7 +2,6 @@
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -142,30 +141,10 @@ public class Utils {
         return null;
     }
 
-    static void sendBytes(DataOutputStream output, Envelope message, SecretKey secretKey) {
-        try {
-            byte[] toSend = serializeEnv(message);
-            String msg = message.getMessage();
-
-            if (!msg.equals("DH") && !msg.equals("DISCONNECT"))
-                toSend = encryptEnv(toSend, secretKey);
-
-            output.writeUTF(msg);
-            output.writeInt(toSend.length);
-            output.write(toSend);
-            output.flush();
-        } catch (IOException e) {
-            System.err.println("Error: " + e.getMessage());
-            e.printStackTrace(System.err);
-        }
-    }
-
     static byte[] serializeEnv(Envelope message) {
-        ByteArrayOutputStream baos = null;
-        ObjectOutputStream oos = null;
         try {
-            baos = new ByteArrayOutputStream();
-            oos = new ObjectOutputStream(baos);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
             oos.writeObject(message);
             return baos.toByteArray();
         } catch (IOException e) {
@@ -175,37 +154,16 @@ public class Utils {
         return null;
     }
 
-    static byte[] encryptEnv(byte[] serialized, SecretKey secretKey) {
+    static byte[] encryptEnv(Envelope message, SecretKey secretKey, IvParameterSpec ivSpec) {
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-            return cipher.doFinal(serialized);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec);
+            byte[] serializedEnv = serializeEnv(message);
+            return cipher.doFinal(serializedEnv);
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException | InvalidKeyException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
-        } catch (IllegalBlockSizeException | BadPaddingException e) {
-            System.err.println("Error: " + e.getMessage());
-            e.printStackTrace(System.err);
-        }
-        return null;
-    }
-
-    static Envelope readBytes(DataInputStream input, SecretKey secretKey, IvParameterSpec ivSpec) {
-        try {
-            String msg = input.readUTF();
-            int length = input.readInt();
-            byte[] bytes = new byte[length];
-            if (length > 0)
-                input.readFully(bytes);
-
-            Envelope message = null;
-            if (!msg.equals("DH") && !msg.equals("DISCONNECT"))
-                message = decryptEnv(bytes, secretKey, ivSpec);
-            else
-                message = deserializeEnv(bytes);
-
-            return message;
-        } catch (IOException e) {
+        } catch (IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }

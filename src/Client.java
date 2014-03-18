@@ -1,7 +1,7 @@
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -22,7 +22,6 @@ import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
-import org.bouncycastle.util.encoders.Base64;
 
 public abstract class Client {
 
@@ -30,11 +29,12 @@ public abstract class Client {
      * Subclasses have access to Socket and input/output streams *
      */
     protected Socket sock;
-    protected DataInputStream input;
-    protected DataOutputStream output;
+    protected ObjectInputStream input;
+    protected ObjectOutputStream output;
 
     private final String GROUP = "GROUP";
     private final String FILE = "FILE";
+
     protected SecretKey gsSecretKey;
     protected SecretKey fsSecretKey;
     protected static PublicKey gsPubKey;
@@ -51,8 +51,8 @@ public abstract class Client {
             @SuppressWarnings("resource")
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(server, port), 10000); // 10 second timeout
-            output = new DataOutputStream(socket.getOutputStream());
-            input = new DataInputStream(socket.getInputStream());
+            output = new ObjectOutputStream(socket.getOutputStream());
+            input = new ObjectInputStream(socket.getInputStream());
 
             return diffieHellman(serverName);
         } catch (SocketTimeoutException | UnknownHostException e) {
@@ -73,7 +73,9 @@ public abstract class Client {
         if (isConnected())
             try {
                 Envelope message = new Envelope("DISCONNECT");
-                Utils.sendBytes(output, message, null);
+                output.reset();
+                output.writeObject(message);
+
                 input.close();
                 output.close();
             } catch (IOException e) {
@@ -106,10 +108,13 @@ public abstract class Client {
             message.addObject(nonce);
             message.addObject(clientDHPubKey.getEncoded());
             System.out.println("\nDH message sent to Group Server: " + message.toString());
-            Utils.sendBytes(output, message, null);
+            Envelope tempMessage = new Envelope("NOT ENCRYPTED");
+            tempMessage.addObject(message);
+            output.reset();
+            output.writeObject(tempMessage);
 
             // Get the response from the server
-            response = Utils.readBytes(input, null, null);
+            response = (Envelope) input.readObject();
             System.out.println("Message received from Group Server: " + response.toString());
 
             // Successful response
@@ -150,6 +155,9 @@ public abstract class Client {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         } catch (NoSuchProviderException | SignatureException | InvalidKeySpecException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }

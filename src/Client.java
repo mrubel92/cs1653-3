@@ -1,8 +1,7 @@
 
-import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -22,6 +21,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import org.bouncycastle.util.encoders.Base64;
 
 public abstract class Client {
 
@@ -29,26 +30,31 @@ public abstract class Client {
      * Subclasses have access to Socket and input/output streams *
      */
     protected Socket sock;
-    protected ObjectInputStream input;
-    protected ObjectOutputStream output;
+    protected DataInputStream input;
+    protected DataOutputStream output;
 
-    protected SecretKey secretKey;
+    private final String GROUP = "GROUP";
+    private final String FILE = "FILE";
+    protected SecretKey gsSecretKey;
+    protected SecretKey fsSecretKey;
     protected static PublicKey gsPubKey;
+    protected IvParameterSpec ivSpec;
 
     static {
         gsPubKey = Utils.getPubKey("public_key.der");
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
-    public boolean connect(final String server, final int port) {
+    public boolean connect(final String server, final int port, String serverName) {
         System.out.println("\nAttempting to connect to: " + server + ":" + port);
         try {
             @SuppressWarnings("resource")
             Socket socket = new Socket();
             socket.connect(new InetSocketAddress(server, port), 10000); // 10 second timeout
-            output = new ObjectOutputStream(socket.getOutputStream());
-            input = new ObjectInputStream(socket.getInputStream());
+            output = new DataOutputStream(socket.getOutputStream());
+            input = new DataInputStream(socket.getInputStream());
 
-            return diffieHellman();
+            return diffieHellman(serverName);
         } catch (SocketTimeoutException | UnknownHostException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
@@ -67,15 +73,17 @@ public abstract class Client {
         if (isConnected())
             try {
                 Envelope message = new Envelope("DISCONNECT");
-                output.writeObject(message);
+                Utils.sendBytes(output, message, null);
+                input.close();
+                output.close();
             } catch (IOException e) {
                 System.err.println("Error: " + e.getMessage());
                 e.printStackTrace(System.err);
             }
     }
 
-    private boolean diffieHellman() {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    // http://exampledepot.8waytrips.com/egs/javax.crypto/KeyAgree.html
+    private boolean diffieHellman(String serverName) {
         int nonceLength = 16;
         byte[] nonce;
 
@@ -83,6 +91,7 @@ public abstract class Client {
         SecureRandom sr = new SecureRandom();
         nonce = new byte[nonceLength];
         sr.nextBytes(nonce);
+        ivSpec = new IvParameterSpec(nonce);
 
         // Client DH key pair
         KeyPair dhKP = Utils.genDHKeyPair();
@@ -97,49 +106,54 @@ public abstract class Client {
             message.addObject(nonce);
             message.addObject(clientDHPubKey.getEncoded());
             System.out.println("\nDH message sent to Group Server: " + message.toString());
-            output.reset();
-            output.writeObject(message);
+            Utils.sendBytes(output, message, null);
 
             // Get the response from the server
-            response = (Envelope) input.readObject();
+            response = Utils.readBytes(input, null, null);
             System.out.println("Message received from Group Server: " + response.toString());
 
             // Successful response
-            if (response.getMessage().equals("OK")) {
+            if (response.getMessage().equals("DH")) {
                 byte[] signedNonce = (byte[]) response.getObjContents().get(0);
                 byte[] servDHPubKeyBytes = (byte[]) response.getObjContents().get(1);
-                
+
                 // Verify nonce first
                 Signature sig = Signature.getInstance("SHA1withRSA", "BC");
-                   
+
                 sig.initVerify(gsPubKey);
                 sig.update(nonce);
-                if(sig.verify(signedNonce))
+                if (sig.verify(signedNonce))
                     System.out.println("Nonce is verified");
                 else {
                     System.out.println("Nonce not verified");
                     return false;
                 }
-                
+
                 // Now get server's DH public key and create the shared AES key
                 X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(servDHPubKeyBytes);
                 KeyFactory kf = KeyFactory.getInstance("DH", "BC");
                 PublicKey servDHPublicKey = kf.generatePublic(x509KeySpec);
-                
+
                 KeyAgreement ka = KeyAgreement.getInstance("DH", "BC");
                 ka.init(clientDHPrivKey);
                 ka.doPhase(servDHPublicKey, true);
 
                 // Generate the secret key
-                secretKey = ka.generateSecret("AES");
-                System.out.println("SECRET KEY: " + Base64.encode(secretKey.getEncoded()));
+                if (serverName.equals(GROUP))
+                    gsSecretKey = ka.generateSecret("AES");
+                if (serverName.equals(FILE))
+                    fsSecretKey = ka.generateSecret("AES");
 
                 return true;
             }
-        } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException | InvalidKeyException | SignatureException | InvalidKeySpecException | NoSuchProviderException e) {
+        } catch (IllegalStateException | NoSuchAlgorithmException | InvalidKeyException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (NoSuchProviderException | SignatureException | InvalidKeySpecException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
         return false;
     }
+
 }

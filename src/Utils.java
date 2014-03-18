@@ -1,11 +1,17 @@
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -17,7 +23,13 @@ import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.DHParameterSpec;
+import javax.crypto.spec.IvParameterSpec;
 
 public class Utils {
 
@@ -27,7 +39,6 @@ public class Utils {
     static {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
-        // Diffie-Hellman
         // https://svn.apache.org/repos/asf/directory/sandbox/erodriguez/kerberos-pkinit/src/main/java/org/apache/directory/server/kerberos/pkinit/DhGroup.java
         StringBuilder sb = new StringBuilder();
         sb.append("FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1");
@@ -131,4 +142,102 @@ public class Utils {
         return null;
     }
 
+    static void sendBytes(DataOutputStream output, Envelope message, SecretKey secretKey) {
+        try {
+            byte[] toSend = serializeEnv(message);
+            String msg = message.getMessage();
+
+            if (!msg.equals("DH") && !msg.equals("DISCONNECT"))
+                toSend = encryptEnv(toSend, secretKey);
+
+            output.writeUTF(msg);
+            output.writeInt(toSend.length);
+            output.write(toSend);
+            output.flush();
+        } catch (IOException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+    }
+
+    static byte[] serializeEnv(Envelope message) {
+        ByteArrayOutputStream baos = null;
+        ObjectOutputStream oos = null;
+        try {
+            baos = new ByteArrayOutputStream();
+            oos = new ObjectOutputStream(baos);
+            oos.writeObject(message);
+            return baos.toByteArray();
+        } catch (IOException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
+    }
+
+    static byte[] encryptEnv(byte[] serialized, SecretKey secretKey) {
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            return cipher.doFinal(serialized);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException | InvalidKeyException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
+    }
+
+    static Envelope readBytes(DataInputStream input, SecretKey secretKey, IvParameterSpec ivSpec) {
+        try {
+            String msg = input.readUTF();
+            int length = input.readInt();
+            byte[] bytes = new byte[length];
+            if (length > 0)
+                input.readFully(bytes);
+
+            Envelope message = null;
+            if (!msg.equals("DH") && !msg.equals("DISCONNECT"))
+                message = decryptEnv(bytes, secretKey, ivSpec);
+            else
+                message = deserializeEnv(bytes);
+
+            return message;
+        } catch (IOException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
+    }
+
+    static Envelope decryptEnv(byte[] bytes, SecretKey secretKey, IvParameterSpec ivSpec) {
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec);
+            byte[] decrypted = cipher.doFinal(bytes);
+            return deserializeEnv(decrypted);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
+    }
+
+    static Envelope deserializeEnv(byte[] bytes) {
+        ObjectInputStream ois = null;
+        try {
+            ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
+            Envelope message = (Envelope) ois.readObject();
+            return message;
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
+    }
 }

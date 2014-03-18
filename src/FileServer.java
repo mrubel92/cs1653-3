@@ -12,7 +12,7 @@ import java.net.Socket;
 public class FileServer extends Server {
 
     public static final int FILE_SERVER_PORT = 4321;
-    public FileList fileList;
+    protected FileList fileList;
 
     public FileServer() {
         super(FILE_SERVER_PORT, "FILE_SERVER");

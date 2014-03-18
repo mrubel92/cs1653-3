@@ -166,7 +166,7 @@ public class HomePanel extends JPanel {
                     return;
                 }
 
-                if (connectToServer(ip, port, RunClient.gclient)) {
+                if (connectToServer(ip, port, RunClient.gclient, "GROUP")) {
                     if (RunClient.gclient.checkNewPassword(un)) {
                         JOptionPane.showMessageDialog(null, "This is your first time logging in, click on 'New User' to create a password", "New User",
                                                       JOptionPane.OK_CANCEL_OPTION);
@@ -289,9 +289,9 @@ public class HomePanel extends JPanel {
         btnSwitchUser.setEnabled(false);
     }
 
-    protected static boolean connectToServer(String ip, String port, Client client) {
+    protected static boolean connectToServer(String ip, String port, Client client, String serverName) {
 
-        if (!client.connect(ip, Integer.parseInt(port))) {
+        if (!client.connect(ip, Integer.parseInt(port), serverName)) {
             JOptionPane.showMessageDialog(null, "Failed to connect to server!", "Connection Failed",
                                           JOptionPane.OK_CANCEL_OPTION);
             System.out.println("Failed to connect to: " + ip + ":" + port);

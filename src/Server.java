@@ -1,6 +1,4 @@
 
-import java.security.Security;
-
 public abstract class Server {
 
     protected int port;
@@ -11,7 +9,6 @@ public abstract class Server {
     public Server(int _SERVER_PORT, String _serverName) {
         port = _SERVER_PORT;
         name = _serverName;
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
     public int getPort() {

@@ -2,10 +2,10 @@
  * 
  */
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
@@ -23,16 +23,20 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import org.bouncycastle.util.encoders.Base64;
 
 public class GroupThread extends Thread {
 
     private final Socket socket;
     private final GroupServer my_gs;
     protected SecretKey secretKey;
+    private IvParameterSpec ivSpec;
 
     public GroupThread(Socket _socket, GroupServer _gs) {
         socket = _socket;
         my_gs = _gs;
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
     }
 
     @Override
@@ -42,15 +46,19 @@ public class GroupThread extends Thread {
             // Announces connection and opens object streams
             System.out
                     .println("\n*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + " ***");
-            final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-            final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+            
+            final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
+            final DataInputStream input = new DataInputStream(socket.getInputStream());
 
             do {
-                Envelope message = (Envelope) input.readObject();
+
+                Envelope message = Utils.readBytes(input, secretKey, ivSpec);
+
                 System.out.println("\nMessage received from client: " + message.toString());
                 Envelope response;
                 String username;
                 String password;
+                byte[] encrypted;
 
                 switch (message.getMessage()) {
                     case "DH":
@@ -62,12 +70,13 @@ public class GroupThread extends Thread {
                                 if (message.getObjContents().get(1) != null) {
                                     byte[] nonce = (byte[]) message.getObjContents().get(0);
                                     byte[] clientPubKeyBytes = (byte[]) message.getObjContents().get(1);
-                                    if (nonce != null && clientPubKeyBytes != null)
+                                    if (nonce != null && clientPubKeyBytes != null) {
+                                        ivSpec = new IvParameterSpec(nonce);
                                         response = diffieHellman(nonce, clientPubKeyBytes);
+                                    }
                                 }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("DH response sent to client: " + response.toString());
                         break;
                     case "CHECK_PASS":
@@ -79,8 +88,8 @@ public class GroupThread extends Thread {
                             response = new Envelope("NEW");
                         else
                             response = new Envelope("NOT_NEW");
-                        output.reset();
-                        output.writeObject(response);
+
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("CHECK_PASS response sent to client: " + response.toString());
                         break;
                     case "CREATE_PASS":
@@ -98,8 +107,8 @@ public class GroupThread extends Thread {
                                     }
                                 }
                         }
-                        output.reset();
-                        output.writeObject(response);
+
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("CREATE_PASS response sent to client: " + response.toString());
                         break;
                     case "GET": // Client wants a token
@@ -115,8 +124,7 @@ public class GroupThread extends Thread {
                             response.addObject(yourToken);
                         }
 
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("GET response sent to client: " + response.toString());
                         break;
                     case "CUSER": // Client wants to create a user
@@ -134,8 +142,7 @@ public class GroupThread extends Thread {
                                             response = new Envelope("OK"); // Success
                                     }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("CUSER response sent to client: " + response.toString());
                         break;
                     case "DUSER": // Client wants to delete a user
@@ -152,8 +159,7 @@ public class GroupThread extends Thread {
                                         response = new Envelope("OK"); // Success
                                 }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("DUSER response sent to client: " + response.toString());
                         break;
                     case "CGROUP": // Client wants to create a group
@@ -169,8 +175,7 @@ public class GroupThread extends Thread {
                                         response = new Envelope("OK"); // Success
                                 }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("CUSER response sent to client: " + response.toString());
                         break;
                     case "DGROUP": // Client wants to delete a group
@@ -188,8 +193,7 @@ public class GroupThread extends Thread {
                                         response = new Envelope("OK"); // Success
                                 }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("DGROUP response sent to client: " + response.toString());
                         break;
                     case "LMEMBERS": // Client wants a list of members in a group
@@ -211,8 +215,7 @@ public class GroupThread extends Thread {
                                         }
                                 }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("LMEMBERS response sent to client: " + response.toString());
                         break;
                     case "LGROUPS":
@@ -230,8 +233,7 @@ public class GroupThread extends Thread {
                                 }
                             }
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("LGROUPS response sent to client: " + response.toString());
                         break;
                     case "AUSERTOGROUP": // Client wants to add user to a group
@@ -248,8 +250,7 @@ public class GroupThread extends Thread {
                                 response = new Envelope("FAIL");
                         }
 
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("AUSERTOGROUP response sent to client: " + response.toString());
                         break;
                     case "RUSERFROMGROUP": // Client wants to remove user from a group
@@ -265,24 +266,24 @@ public class GroupThread extends Thread {
                             else
                                 response = new Envelope("FAIL");
                         }
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         System.out.println("RUSERFROMGROUP response sent to client: " + response.toString());
                         break;
                     case "DISCONNECT": // Client wants to disconnect
                         socket.close(); // Close the socket
                         proceed = false; // End this communication loop
+                        input.close();
+                        output.close();
                         break;
                     default:
                         response = new Envelope("FAIL"); // Server does not understand client request
-                        output.reset();
-                        output.writeObject(response);
+                        Utils.sendBytes(output, response, secretKey);
                         break;
                 }
             } while (proceed);
         } catch (EOFException eof) {
             // Do nothing, the client connected to this thread is done talking
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (IOException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
@@ -482,26 +483,25 @@ public class GroupThread extends Thread {
 
     // http://exampledepot.8waytrips.com/egs/javax.crypto/KeyAgree.html
     private Envelope diffieHellman(byte[] nonce, byte[] clientPubKeyBytes) {
-        Envelope response = new Envelope("FAIL");
+        Envelope response;
         try {
-            response = new Envelope("OK");
-            Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-            
+            response = new Envelope("DH");
+
             // Server's pub and priv DH key pair
             KeyPair dhKP = Utils.genDHKeyPair();
             PrivateKey servDHPrivKey = dhKP.getPrivate();
             PublicKey servDHPubKey = dhKP.getPublic();
-            
+
             // Convert the client's DH public key bytes into a PublicKey object
             X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(clientPubKeyBytes);
             KeyFactory keyFact = KeyFactory.getInstance("DH", "BC");
             PublicKey clientPubKey = keyFact.generatePublic(x509KeySpec);
-            
+
             // Prepare to generate the AES secret key with the server's DH private key and client's DH public key
             KeyAgreement ka = KeyAgreement.getInstance("DH", "BC");
             ka.init(servDHPrivKey);
             ka.doPhase(clientPubKey, true);
-            
+
             // Generate the secret key
             secretKey = ka.generateSecret("AES");
             
@@ -510,7 +510,7 @@ public class GroupThread extends Thread {
             sig.initSign(GroupServer.gsPrivKey);
             sig.update(nonce);
             byte[] signedNonce = sig.sign();
-            
+
             response.addObject(signedNonce);
             response.addObject(servDHPubKey.getEncoded());
             return response;
@@ -518,6 +518,6 @@ public class GroupThread extends Thread {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
-        return response;
+        return null;
     }
 }

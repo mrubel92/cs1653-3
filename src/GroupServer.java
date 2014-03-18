@@ -25,8 +25,8 @@ public class GroupServer extends Server {
     protected static PublicKey gsPubKey;
 
     static {
-        gsPrivKey = Utils.getPrivKey("private_key.der");
-        gsPubKey = Utils.getPubKey("public_key.der");
+        gsPrivKey = Utils.getPrivKey("gs_private_key.der");
+        gsPubKey = Utils.getPubKey("gs_public_key.der");
     }
 
     public GroupServer() {

@@ -59,7 +59,7 @@ public class GroupThread extends Thread {
                     message = (Envelope) tempMessage.getObjContents().get(0);
 
                 System.out.println("\nMessage received from client: " + message.toString());
-                Envelope response;
+                Envelope response, tempResponse;
                 String username;
                 String password;
 
@@ -93,10 +93,10 @@ public class GroupThread extends Thread {
                         else
                             response = new Envelope("NOT_NEW");
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("CHECK_PASS response sent to client: " + response.toString());
                         break;
                     case "CREATE_PASS":
@@ -115,10 +115,10 @@ public class GroupThread extends Thread {
                                 }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("CREATE_PASS response sent to client: " + response.toString());
                         break;
                     case "GET": // Client wants a token
@@ -134,10 +134,10 @@ public class GroupThread extends Thread {
                             response.addObject(yourToken);
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("GET response sent to client: " + response.toString());
                         break;
                     case "CUSER": // Client wants to create a user
@@ -156,10 +156,10 @@ public class GroupThread extends Thread {
                                     }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("CUSER response sent to client: " + response.toString());
                         break;
                     case "DUSER": // Client wants to delete a user
@@ -177,10 +177,10 @@ public class GroupThread extends Thread {
                                 }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("DUSER response sent to client: " + response.toString());
                         break;
                     case "CGROUP": // Client wants to create a group
@@ -197,10 +197,10 @@ public class GroupThread extends Thread {
                                 }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("CUSER response sent to client: " + response.toString());
                         break;
                     case "DGROUP": // Client wants to delete a group
@@ -219,10 +219,10 @@ public class GroupThread extends Thread {
                                 }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("DGROUP response sent to client: " + response.toString());
                         break;
                     case "LMEMBERS": // Client wants a list of members in a group
@@ -245,10 +245,10 @@ public class GroupThread extends Thread {
                                 }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("LMEMBERS response sent to client: " + response.toString());
                         break;
                     case "LGROUPS":
@@ -267,10 +267,10 @@ public class GroupThread extends Thread {
                             }
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("LGROUPS response sent to client: " + response.toString());
                         break;
                     case "AUSERTOGROUP": // Client wants to add user to a group
@@ -287,10 +287,10 @@ public class GroupThread extends Thread {
                                 response = new Envelope("FAIL");
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("AUSERTOGROUP response sent to client: " + response.toString());
                         break;
                     case "RUSERFROMGROUP": // Client wants to remove user from a group
@@ -307,10 +307,10 @@ public class GroupThread extends Thread {
                                 response = new Envelope("FAIL");
                         }
 
-                        tempMessage = new Envelope("ENCRYPTED");
-                        tempMessage.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(tempMessage);
+                        output.writeObject(tempResponse);
                         System.out.println("RUSERFROMGROUP response sent to client: " + response.toString());
                         break;
                     case "DISCONNECT": // Client wants to disconnect

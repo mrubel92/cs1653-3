@@ -8,13 +8,30 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import javax.crypto.KeyAgreement;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 public class FileThread extends Thread {
 
     private final Socket socket;
     private final FileServer my_fs;
+
+    protected SecretKey secretKey;
+    private IvParameterSpec ivSpec;
 
     public FileThread(Socket _socket, FileServer _fs) {
         socket = _socket;
@@ -32,9 +49,16 @@ public class FileThread extends Thread {
             final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 
             do {
-                Envelope message = (Envelope) input.readObject();
+                Envelope tempMessage = (Envelope) input.readObject();
+                Envelope message = null;
+                if (tempMessage.getMessage().equals("ENCRYPTED"))
+                    message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                else
+                    message = (Envelope) tempMessage.getObjContents().get(0);
+
                 System.out.println("\nMessage received from client: " + message.toString());
                 Envelope response = null;
+                Envelope tempResponse;
                 List<String> usersFiles;
                 UserToken yourToken;
                 String remotePath;
@@ -43,6 +67,33 @@ public class FileThread extends Thread {
 
                 // Handler to list files that this user is allowed to see
                 switch (message.getMessage()) {
+                    case "FINGERPRINT":
+                        response = new Envelope("FINGERPRINT");
+                        response.addObject(FileServer.fsPubKey);
+
+                        output.reset();
+                        output.writeObject(response);
+                        System.out.println("FINGERPRINT response sent to client: " + response.toString());
+                        break;
+                    case "DH":
+                        if (message.getObjContents().size() < 2)
+                            response = new Envelope("FAIL");
+                        else {
+                            response = new Envelope("FAIL");
+                            if (message.getObjContents().get(0) != null)
+                                if (message.getObjContents().get(1) != null) {
+                                    byte[] nonce = (byte[]) message.getObjContents().get(0);
+                                    byte[] clientPubKeyBytes = (byte[]) message.getObjContents().get(1);
+                                    if (nonce != null && clientPubKeyBytes != null) {
+                                        ivSpec = new IvParameterSpec(nonce);
+                                        response = diffieHellman(nonce, clientPubKeyBytes);
+                                    }
+                                }
+                        }
+                        output.reset();
+                        output.writeObject(response);
+                        System.out.println("DH response sent to client: " + response.toString());
+                        break;
                     case "LFILES":
                         if (message.getObjContents().size() < 1)
                             response = new Envelope("FAIL-BADCONTENTS");
@@ -264,6 +315,7 @@ public class FileThread extends Thread {
                         socket.close();
                         proceed = false;
                 }
+
             } while (proceed);
         } catch (EOFException eof) {
             // Do nothing, the client connected to this thread is done talking
@@ -271,5 +323,45 @@ public class FileThread extends Thread {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
+    }
+
+// http://exampledepot.8waytrips.com/egs/javax.crypto/KeyAgree.html
+    private Envelope diffieHellman(byte[] nonce, byte[] clientPubKeyBytes) {
+        Envelope response;
+        try {
+            response = new Envelope("DH");
+
+            // Server's pub and priv DH key pair
+            KeyPair dhKP = Utils.genDHKeyPair();
+            PrivateKey servDHPrivKey = dhKP.getPrivate();
+            PublicKey servDHPubKey = dhKP.getPublic();
+
+            // Convert the client's DH public key bytes into a PublicKey object
+            X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(clientPubKeyBytes);
+            KeyFactory keyFact = KeyFactory.getInstance("DH", "BC");
+            PublicKey clientPubKey = keyFact.generatePublic(x509KeySpec);
+
+            // Prepare to generate the AES secret key with the server's DH private key and client's DH public key
+            KeyAgreement ka = KeyAgreement.getInstance("DH", "BC");
+            ka.init(servDHPrivKey);
+            ka.doPhase(clientPubKey, true);
+
+            // Generate the secret key
+            secretKey = ka.generateSecret("AES");
+
+            // Send pub key and nonce back to client
+            Signature sig = Signature.getInstance("SHA1withRSA", "BC");
+            sig.initSign(FileServer.fsPrivKey);
+            sig.update(nonce);
+            byte[] signedNonce = sig.sign();
+
+            response.addObject(signedNonce);
+            response.addObject(servDHPubKey.getEncoded());
+            return response;
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | InvalidKeyException | SignatureException | NoSuchProviderException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
+        return null;
     }
 }

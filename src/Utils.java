@@ -19,12 +19,15 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.DHParameterSpec;
@@ -141,7 +144,7 @@ public class Utils {
         return null;
     }
 
-    static byte[] serializeEnv(Envelope message) {
+    public static byte[] serializeEnv(Envelope message) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -154,7 +157,7 @@ public class Utils {
         return null;
     }
 
-    static byte[] encryptEnv(Envelope message, SecretKey secretKey, IvParameterSpec ivSpec) {
+    public static byte[] encryptEnv(Envelope message, SecretKey secretKey, IvParameterSpec ivSpec) {
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec);
@@ -170,7 +173,7 @@ public class Utils {
         return null;
     }
 
-    static Envelope decryptEnv(byte[] bytes, SecretKey secretKey, IvParameterSpec ivSpec) {
+    public static Envelope decryptEnv(byte[] bytes, SecretKey secretKey, IvParameterSpec ivSpec) {
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
             cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec);
@@ -186,7 +189,7 @@ public class Utils {
         return null;
     }
 
-    static Envelope deserializeEnv(byte[] bytes) {
+    public static Envelope deserializeEnv(byte[] bytes) {
         ObjectInputStream ois = null;
         try {
             ois = new ObjectInputStream(new ByteArrayInputStream(bytes));

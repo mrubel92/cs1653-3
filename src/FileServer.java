@@ -8,11 +8,21 @@ import java.io.ObjectInputStream;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class FileServer extends Server {
 
     public static final int FILE_SERVER_PORT = 4321;
     protected FileList fileList;
+    
+    protected static PrivateKey fsPrivKey;
+    protected static PublicKey fsPubKey;
+
+    static {
+        fsPrivKey = Utils.getPrivKey("fs_private_key.der");
+        fsPubKey = Utils.getPubKey("fs_public_key.der");
+    }
 
     public FileServer() {
         super(FILE_SERVER_PORT, "FILE_SERVER");

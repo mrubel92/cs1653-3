@@ -21,9 +21,13 @@ public class FileClient extends Client implements FileClientInterface {
         message.addObject(remotePath);
         message.addObject(token);
         try {
+            Envelope tempMessage = new Envelope("ENCRYPTED");
+            tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
-            output.writeObject(message);
-            response = (Envelope) input.readObject();
+            output.writeObject(tempMessage);
+
+            Envelope tempResponse = (Envelope) input.readObject();
+            response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
 
             if (response.getMessage().equals("OK"))
                 System.out.printf("File %s deleted successfully\n", filename);
@@ -101,10 +105,14 @@ public class FileClient extends Client implements FileClientInterface {
             // Tell the server to return the member list
             message = new Envelope("LFILES");
             message.addObject(token); // Add requester's token
-            output.reset();
-            output.writeObject(message);
 
-            response = (Envelope) input.readObject();
+            Envelope tempMessage = new Envelope("ENCRYPTED");
+            tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
+            output.reset();
+            output.writeObject(tempMessage);
+
+            Envelope tempResponse = (Envelope) input.readObject();
+            response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
 
             // If server indicates success, return the member list
             if (response.getMessage().equals("OK"))
@@ -125,10 +133,14 @@ public class FileClient extends Client implements FileClientInterface {
             message = new Envelope("LGFILES");
             message.addObject(token); // Add requester's token
             message.addObject(group);
-            output.reset();
-            output.writeObject(message);
 
-            response = (Envelope) input.readObject();
+            Envelope tempMessage = new Envelope("ENCRYPTED");
+            tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
+            output.reset();
+            output.writeObject(tempMessage);
+
+            Envelope tempResponse = (Envelope) input.readObject();
+            response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
 
             // If server indicates success, return the member list
             if (response.getMessage().equals("OK"))

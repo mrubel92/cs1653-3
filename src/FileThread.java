@@ -114,8 +114,11 @@ public class FileThread extends Thread {
                             response = new Envelope("OK");
                             response.addObject(usersFiles);
                         }
+
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(response);
+                        output.writeObject(tempResponse);
                         System.out.println("LFILES response sent to client: " + response.toString());
                         break;
                     case "LGFILES":
@@ -148,8 +151,11 @@ public class FileThread extends Thread {
                                 }
                             }
                         }
+
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(response);
+                        output.writeObject(tempResponse);
                         System.out.println("LGFILES response sent to client: " + response.toString());
                         break;
                     case "UPLOADF":
@@ -180,15 +186,30 @@ public class FileThread extends Thread {
                                         System.out.printf("Successfully created file %s\n", remotePath.replace('/', '_'));
 
                                         response = new Envelope("READY"); // Success
-                                        output.writeObject(response);
+                                        tempResponse = new Envelope("ENCRYPTED");
+                                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                                        output.reset();
+                                        output.writeObject(tempResponse);
 
-                                        message = (Envelope) input.readObject();
+                                        tempMessage = (Envelope) input.readObject();
+                                        if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                            message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                        else
+                                            message = (Envelope) tempMessage.getObjContents().get(0);
                                         while (message.getMessage().equals("CHUNK")) {
                                             fos.write((byte[]) message.getObjContents().get(0), 0, (Integer) message
                                                     .getObjContents().get(1));
                                             response = new Envelope("READY"); // Success
-                                            output.writeObject(response);
-                                            message = (Envelope) input.readObject();
+                                            tempResponse = new Envelope("ENCRYPTED");
+                                            tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                                            output.reset();
+                                            output.writeObject(tempResponse);
+
+                                            tempMessage = (Envelope) input.readObject();
+                                            if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                                message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                            else
+                                                message = (Envelope) tempMessage.getObjContents().get(0);
                                         }
 
                                         if (message.getMessage().equals("EOF")) {
@@ -203,8 +224,11 @@ public class FileThread extends Thread {
                                 }
                             }
                         }
+
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(response);
+                        output.writeObject(tempResponse);
                         System.out.println("UPLOADF response sent to client: " + response.toString());
                         break;
                     case "DOWNLOADF":
@@ -214,13 +238,19 @@ public class FileThread extends Thread {
                         if (sf == null) {
                             System.out.printf("Error: File %s doesn't exist\n", remotePath);
                             response = new Envelope("ERROR_FILEMISSING");
+
+                            tempResponse = new Envelope("ENCRYPTED");
+                            tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                             output.reset();
-                            output.writeObject(response);
+                            output.writeObject(tempResponse);
                         } else if (!t.getGroups().contains(sf.getGroup())) {
                             System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
                             response = new Envelope("ERROR_PERMISSION");
+
+                            tempResponse = new Envelope("ENCRYPTED");
+                            tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                             output.reset();
-                            output.writeObject(response);
+                            output.writeObject(tempResponse);
                         } else
                             try {
                                 File f = new File("shared_files/_" + remotePath.replace('/', '_'));
@@ -228,8 +258,11 @@ public class FileThread extends Thread {
                                     System.out.printf("Error file %s missing from disk\n",
                                                       "_" + remotePath.replace('/', '_'));
                                     response = new Envelope("ERROR_NOTONDISK");
+
+                                    tempResponse = new Envelope("ENCRYPTED");
+                                    tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                     output.reset();
-                                    output.writeObject(response);
+                                    output.writeObject(tempResponse);
                                 } else {
                                     try (FileInputStream fis = new FileInputStream(f)) {
                                         do {
@@ -248,19 +281,33 @@ public class FileThread extends Thread {
                                             response.addObject(buf);
                                             response.addObject(new Integer(n));
 
-                                            output.writeObject(response);
+                                            tempResponse = new Envelope("ENCRYPTED");
+                                            tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                                            output.reset();
+                                            output.writeObject(tempResponse);
 
-                                            response = (Envelope) input.readObject();
+                                            tempMessage = (Envelope) input.readObject();
+                                            if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                                message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                            else
+                                                message = (Envelope) tempMessage.getObjContents().get(0);
+
                                         } while (fis.available() > 0);
                                     }
 
                                     // If server indicates success, return the member list
                                     if (message.getMessage().equals("DOWNLOADF")) {
                                         response = new Envelope("EOF");
+                                        tempResponse = new Envelope("ENCRYPTED");
+                                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                         output.reset();
-                                        output.writeObject(response);
+                                        output.writeObject(tempResponse);
 
-                                        message = (Envelope) input.readObject();
+                                        tempMessage = (Envelope) input.readObject();
+                                        if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                            message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                        else
+                                            message = (Envelope) tempMessage.getObjContents().get(0);
                                         if (message.getMessage().equals("OK"))
                                             System.out.printf("File data upload successful\n");
                                         else
@@ -307,8 +354,11 @@ public class FileThread extends Thread {
                                 e1.printStackTrace(System.err);
                                 response = new Envelope(e1.getMessage());
                             }
+
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
-                        output.writeObject(response);
+                        output.writeObject(tempResponse);
                         System.out.println("DELETEF response sent to client: " + response.toString());
                         break;
                     case "DISCONNECT":

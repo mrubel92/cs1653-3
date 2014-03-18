@@ -49,7 +49,7 @@ public class FileClient extends Client implements FileClientInterface {
 
         File file = new File(tempSourceFile);
         try {
-            Envelope message, response;
+            Envelope message, response, tempMessage, tempResponse;
 
             if (!file.exists()) {
                 file.createNewFile();
@@ -58,18 +58,27 @@ public class FileClient extends Client implements FileClientInterface {
                 message = new Envelope("DOWNLOADF"); // Success
                 message.addObject(tempSourceFile);
                 message.addObject(token);
-                output.reset();
-                output.writeObject(message);
 
-                response = (Envelope) input.readObject();
+                tempMessage = new Envelope("ENCRYPTED");
+                tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
+                output.reset();
+                output.writeObject(tempMessage);
+
+                tempResponse = (Envelope) input.readObject();
+                response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
 
                 while (response.getMessage().equals("CHUNK")) {
                     fos.write((byte[]) response.getObjContents().get(0), 0, (Integer) response.getObjContents().get(1));
                     System.out.printf(".");
                     message = new Envelope("DOWNLOADF"); // Success
+
+                    tempMessage = new Envelope("ENCRYPTED");
+                    tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                     output.reset();
-                    output.writeObject(message);
-                    response = (Envelope) input.readObject();
+                    output.writeObject(tempMessage);
+
+                    tempResponse = (Envelope) input.readObject();
+                    response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
                 }
                 fos.close();
 
@@ -77,8 +86,11 @@ public class FileClient extends Client implements FileClientInterface {
                     fos.close();
                     System.out.printf("\nTransfer successful file %s\n", tempSourceFile);
                     message = new Envelope("OK"); // Success
+
+                    tempMessage = new Envelope("ENCRYPTED");
+                    tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                     output.reset();
-                    output.writeObject(message);
+                    output.writeObject(tempMessage);
                 } else {
                     System.out.printf("Error reading file %s (%s)\n", tempSourceFile, response.getMessage());
                     file.delete();
@@ -160,15 +172,20 @@ public class FileClient extends Client implements FileClientInterface {
             tempDestFile = "/" + tempDestFile;
 
         try {
-            Envelope message, response;
+            Envelope message, response, tempMessage, tempResponse;
             message = new Envelope("UPLOADF");
             message.addObject(tempDestFile);
             message.addObject(group);
             message.addObject(token); // Add requester's token
+
+            tempMessage = new Envelope("ENCRYPTED");
+            tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
-            output.writeObject(message);
+            output.writeObject(tempMessage);
+
             try (FileInputStream fis = new FileInputStream(sourceFile)) {
-                response = (Envelope) input.readObject();
+                tempResponse = (Envelope) input.readObject();
+                response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
 
                 if (response.getMessage().equals("READY"))
                     System.out.printf("Meta data upload successful\n");
@@ -198,19 +215,26 @@ public class FileClient extends Client implements FileClientInterface {
                     message.addObject(buf);
                     message.addObject(new Integer(n));
 
+                    tempMessage = new Envelope("ENCRYPTED");
+                    tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                     output.reset();
-                    output.writeObject(message);
-                    response = (Envelope) input.readObject();
+                    output.writeObject(tempMessage);
+
+                    tempResponse = (Envelope) input.readObject();
+                    response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
 
                 } while (fis.available() > 0);
             }
 
             if (response.getMessage().equals("READY")) {
                 message = new Envelope("EOF");
+                tempMessage = new Envelope("ENCRYPTED");
+                tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                 output.reset();
-                output.writeObject(message);
+                output.writeObject(tempMessage);
 
-                response = (Envelope) input.readObject();
+                tempResponse = (Envelope) input.readObject();
+                response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
                 if (response.getMessage().equals("OK"))
                     System.out.printf("\nFile data upload successful\n");
                 else {

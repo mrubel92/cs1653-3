@@ -7,6 +7,9 @@ REQUIRED FILES:
 bcprov-jdk15on-150.jar
 - BouncyCastle library
 
+Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files
+- Needed for BouncyCastle
+
 gs_public_key.der
 gs_private_key.der
 fs_public_key.der

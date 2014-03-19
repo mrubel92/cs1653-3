@@ -18,10 +18,12 @@ public class FileServer extends Server {
     
     protected static PrivateKey fsPrivKey;
     protected static PublicKey fsPubKey;
+    protected static PublicKey gsPubKey;
 
     static {
         fsPrivKey = Utils.getPrivKey("fs_private_key.der");
         fsPubKey = Utils.getPubKey("fs_public_key.der");
+        gsPubKey = Utils.getPubKey("gs_public_key.der");
     }
 
     public FileServer() {

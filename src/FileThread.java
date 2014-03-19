@@ -21,6 +21,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -40,6 +42,7 @@ public class FileThread extends Thread {
 
     @Override
     public void run() {
+        boolean verifiedToken = false;
         boolean proceed = true;
         try {
             // Announces connection and opens object streams
@@ -61,12 +64,39 @@ public class FileThread extends Thread {
                 Envelope tempResponse;
                 List<String> usersFiles;
                 UserToken yourToken;
+                byte[] signedToken;
                 String remotePath;
                 Token t;
                 ShareFile sf;
 
+                if (!message.getMessage().equals("VERIFY") && !verifiedToken && !message.getMessage().equals("DH") && !message.getMessage().equals("FINGERPRINT"))
+                    message = new Envelope("DISCONNECT");
+
                 // Handler to list files that this user is allowed to see
                 switch (message.getMessage()) {
+                    case "VERIFY":
+                        if (message.getObjContents().size() < 2)
+                            response = new Envelope("FAIL-BADCONTENTS");
+                        else if (message.getObjContents().get(0) == null)
+                            response = new Envelope("FAIL-BADTOKEN");
+                        else if (message.getObjContents().get(1) == null)
+                            response = new Envelope("FAIL-BADSIGNATURE");
+                        else {
+                            yourToken = (UserToken) message.getObjContents().get(0);
+                            signedToken = (byte[]) message.getObjContents().get(1);
+                            if (verifyToken(signedToken, yourToken)) {
+                                response = new Envelope("VERIFIED");
+                                verifiedToken = true;
+                            }
+                            else
+                                response = new Envelope("NOTVERIFIED");
+                        }
+                        tempResponse = new Envelope("ENCRYPTED");
+                        tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+                        output.reset();
+                        output.writeObject(tempResponse);
+                        System.out.println("VERIFY response sent to client: " + response.toString());
+                        break;
                     case "FINGERPRINT":
                         response = new Envelope("FINGERPRINT");
                         response.addObject(FileServer.fsPubKey);
@@ -99,6 +129,7 @@ public class FileThread extends Thread {
                             response = new Envelope("FAIL-BADCONTENTS");
                         else if (message.getObjContents().get(0) == null)
                             response = new Envelope("FAIL-BADTOKEN");
+
                         else {
                             usersFiles = new ArrayList<>();
                             yourToken = (UserToken) message.getObjContents().get(0);
@@ -373,6 +404,20 @@ public class FileThread extends Thread {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
         }
+    }
+
+    private boolean verifyToken(byte[] signedToken, UserToken token) {
+        try {
+            // Verify nonce first
+            Signature sig = Signature.getInstance("SHA1withRSA", "BC");
+            sig.initVerify(my_fs.gsPubKey);
+
+            sig.update(Utils.serializeEnv(token));
+            return sig.verify(signedToken);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException | SignatureException ex) {
+            Logger.getLogger(FileThread.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return false;
     }
 
 // http://exampledepot.8waytrips.com/egs/javax.crypto/KeyAgree.html

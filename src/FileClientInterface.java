@@ -1,6 +1,5 @@
 
 import java.util.List;
-import javax.crypto.SecretKey;
 
 /**
  * Interface describing the operations that must be supported by the client

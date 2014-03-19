@@ -5,11 +5,33 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class FileClient extends Client implements FileClientInterface {
 
+    public boolean verifyToken(UserToken token, byte[] signedToken) {
+        try {
+            Envelope message, response;
+            message = new Envelope("VERIFY"); // Success
+            message.addObject(token);
+            message.addObject(signedToken);
+            Envelope tempMessage = new Envelope("ENCRYPTED");
+            tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
+            output.reset();
+            output.writeObject(tempMessage);
+            Envelope tempResponse = (Envelope) input.readObject();
+            response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+            return response.getMessage().equals("VERIFIED");
+        } catch (IOException | ClassNotFoundException ex) {
+            Logger.getLogger(FileClient.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return false;
+    }
+
     @Override
-    public boolean delete(String filename, UserToken token) {
+    public boolean delete(String filename, UserToken token
+    ) {
         String remotePath;
         if (filename.charAt(0) == '/')
             remotePath = filename.substring(1);
@@ -42,7 +64,8 @@ public class FileClient extends Client implements FileClientInterface {
     }
 
     @Override
-    public boolean download(String sourceFile, String destFile, UserToken token) {
+    public boolean download(String sourceFile, String destFile, UserToken token
+    ) {
         String tempSourceFile = sourceFile;
         if (tempSourceFile.charAt(0) == '/')
             tempSourceFile = tempSourceFile.substring(1);
@@ -111,7 +134,8 @@ public class FileClient extends Client implements FileClientInterface {
 
     @SuppressWarnings("unchecked")
     @Override
-    public List<String> listFiles(UserToken token) {
+    public List<String> listFiles(UserToken token
+    ) {
         try {
             Envelope message, response;
             // Tell the server to return the member list
@@ -138,7 +162,8 @@ public class FileClient extends Client implements FileClientInterface {
     }
 
     @SuppressWarnings("unchecked")
-    public List<String> listGroupFiles(UserToken token, String group) {
+    public List<String> listGroupFiles(UserToken token, String group
+    ) {
         try {
             Envelope message, response;
             // Tell the server to return the member list
@@ -166,7 +191,8 @@ public class FileClient extends Client implements FileClientInterface {
     }
 
     @Override
-    public boolean upload(String sourceFile, String destFile, String group, UserToken token) {
+    public boolean upload(String sourceFile, String destFile, String group, UserToken token
+    ) {
         String tempDestFile = destFile;
         if (tempDestFile.charAt(0) != '/')
             tempDestFile = "/" + tempDestFile;

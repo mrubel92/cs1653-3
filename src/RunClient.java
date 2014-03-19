@@ -19,6 +19,7 @@ public class RunClient extends JFrame {
     protected static GroupClient gclient;
     protected static FileClient fclient;
     protected static UserToken userToken;
+    protected static byte[] signedToken;
     protected static final String NAME_PATTERN = "\\w{1,16}";
 
     // Constructor. Instantiates the GroupClient and tries to connect.

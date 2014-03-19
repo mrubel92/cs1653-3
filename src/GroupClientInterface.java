@@ -40,7 +40,7 @@ public interface GroupClientInterface {
      * user does not exist, a null value will be returned.
      *
      */
-    public UserToken getToken(final String username, final String password);
+    public Envelope getToken(final String username, final String password);
 
     /**
      * Creates a new user. This method should only succeed if the user invoking

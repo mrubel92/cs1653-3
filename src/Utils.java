@@ -19,15 +19,12 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.DHParameterSpec;
@@ -144,7 +141,7 @@ public class Utils {
         return null;
     }
 
-    public static byte[] serializeEnv(Envelope message) {
+    public static byte[] serializeEnv(Object message) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -178,7 +175,7 @@ public class Utils {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
             cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec);
             byte[] decrypted = cipher.doFinal(bytes);
-            return deserializeEnv(decrypted);
+            return (Envelope) deserializeEnv(decrypted);
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
@@ -189,12 +186,11 @@ public class Utils {
         return null;
     }
 
-    public static Envelope deserializeEnv(byte[] bytes) {
+    public static Object deserializeEnv(byte[] bytes) {
         ObjectInputStream ois = null;
         try {
             ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
-            Envelope message = (Envelope) ois.readObject();
-            return message;
+            return ois.readObject();
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);

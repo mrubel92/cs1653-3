@@ -173,7 +173,9 @@ public class HomePanel extends JPanel {
                         return;
                     }
 
-                    RunClient.userToken = RunClient.gclient.getToken(un, passString);
+                    Envelope token = RunClient.gclient.getToken(un, passString);
+                    RunClient.userToken = (UserToken) token.getObjContents().get(0);
+                    RunClient.signedToken = (byte[]) token.getObjContents().get(1);
                     if (RunClient.userToken == null) {
                         JOptionPane.showMessageDialog(null,
                                                       "User does not exist or incorrect password", "Bad login",

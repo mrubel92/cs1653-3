@@ -100,15 +100,18 @@ public class FileServerPanel extends JPanel {
         btnConnectButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent arg0) {
-                if (HomePanel.connectToServer(txtIpAddress.getText(), txtPort.getText(), RunClient.fclient, "FILE")) {
-                    connected = true;
-                    btnUpload.setEnabled(true);
-                    btnDownload.setEnabled(true);
-                    btnDelete.setEnabled(true);
-                    btnListGroups.setEnabled(true);
-                    btnListGFiles.setEnabled(true);
-                    btnListFiles.setEnabled(true);
-                }
+                if (HomePanel.connectToServer(txtIpAddress.getText(), txtPort.getText(), RunClient.fclient, "FILE"))
+                    if (RunClient.fclient.verifyToken(RunClient.userToken, RunClient.signedToken)) {
+                        connected = true;
+                        btnUpload.setEnabled(true);
+                        btnDownload.setEnabled(true);
+                        btnDelete.setEnabled(true);
+                        btnListGroups.setEnabled(true);
+                        btnListGFiles.setEnabled(true);
+                        btnListFiles.setEnabled(true);
+                    } else {
+                         JOptionPane.showMessageDialog(null, "Bad token");
+                    }
             }
         });
         toolBar.add(btnConnectButton);

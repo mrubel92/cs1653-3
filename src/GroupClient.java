@@ -58,10 +58,11 @@ public class GroupClient extends Client implements GroupClientInterface {
     }
 
     @Override
-    public UserToken getToken(String username, String password) {
+    public Envelope getToken(String username, String password) {
         try {
             UserToken token;
-            Envelope message, response;
+            byte[] signedToken;
+            Envelope message, response, tokenEnv;
 
             // Tell the server to return a token.
             message = new Envelope("GET");
@@ -83,9 +84,13 @@ public class GroupClient extends Client implements GroupClientInterface {
                 ArrayList<Object> temp;
                 temp = response.getObjContents();
 
-                if (temp.size() == 1) {
+                if (temp.size() == 2) {
                     token = (UserToken) temp.get(0);
-                    return token;
+                    signedToken = (byte[]) temp.get(1);
+                    tokenEnv = new Envelope("TOKEN");
+                    tokenEnv.addObject(token);
+                    tokenEnv.addObject(signedToken);
+                    return tokenEnv;
                 }
             }
             return null;

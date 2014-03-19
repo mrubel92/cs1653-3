@@ -21,6 +21,8 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -132,6 +134,14 @@ public class GroupThread extends Thread {
                             // Respond to the client. On error, the client will receive a null token
                             response = new Envelope("OK");
                             response.addObject(yourToken);
+
+                            // Sign token
+                            Signature sig = Signature.getInstance("SHA1withRSA", "BC");
+                            sig.initSign(GroupServer.gsPrivKey);
+                            byte[] serializedToken = Utils.serializeEnv(yourToken);
+                            sig.update(serializedToken);
+                            byte[] signedToken = sig.sign();
+                            response.addObject(signedToken);
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
@@ -331,6 +341,14 @@ public class GroupThread extends Thread {
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchProviderException ex) {
+            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InvalidKeyException ex) {
+            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SignatureException ex) {
+            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 

@@ -1,4 +1,16 @@
 Once inside src/ folder,
 
-COMPILE: javac *.java
+COMPILE: javac -cp .:bcprov-jdk15on-150.jar *.java
+
+REQUIRED FILES: 
+
+bcprov-jdk15on-150.jar
+- BouncyCastle library
+
+gs_public_key.der
+gs_private_key.der
+fs_public_key.der
+fs_private_key.der
+- These files simulate public and private keys generated offline by system admins.
+
 

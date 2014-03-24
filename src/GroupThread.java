@@ -21,8 +21,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -111,7 +109,7 @@ public class GroupThread extends Thread {
                                     username = (String) message.getObjContents().get(0); // Get the username
                                     password = (String) message.getObjContents().get(1);
                                     if (username != null && password != null) {
-                                        my_gs.userList.addUser(username, password);
+                                        my_gs.userList.changePass(username, password);
                                         response = new Envelope("OK");
                                     }
                                 }
@@ -161,7 +159,8 @@ public class GroupThread extends Thread {
 
                                         username = (String) message.getObjContents().get(0); // Extract the username
                                         UserToken yourToken = (UserToken) message.getObjContents().get(1); // Extract the token
-                                        if (createUser(username, yourToken))
+                                        String pass = (String) message.getObjContents().get(2);
+                                        if (createUser(username, yourToken, pass))
                                             response = new Envelope("OK"); // Success
                                     }
                         }
@@ -338,17 +337,9 @@ public class GroupThread extends Thread {
             } while (proceed);
         } catch (EOFException eof) {
             // Do nothing, the client connected to this thread is done talking
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException | NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException | SignatureException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchProviderException ex) {
-            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (InvalidKeyException ex) {
-            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SignatureException ex) {
-            Logger.getLogger(GroupThread.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -472,7 +463,7 @@ public class GroupThread extends Thread {
     }
 
     // Method to create a user
-    private boolean createUser(String username, UserToken yourToken) {
+    private boolean createUser(String username, UserToken yourToken, String password) {
         String requester = yourToken.getSubject();
 
         // Check if requester exists
@@ -485,7 +476,7 @@ public class GroupThread extends Thread {
                 if (my_gs.userList.checkUser(username))
                     return false; // User already exists
                 else {
-                    my_gs.userList.addUser(username, "PASSWORD");
+                    my_gs.userList.addUser(username, password);
                     return true;
                 }
             else

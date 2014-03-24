@@ -310,9 +310,12 @@ public class GroupPanel extends JPanel {
         gbc_btnCreateUser.gridx = 0;
         gbc_btnCreateUser.gridy = 8;
         gbc_btnCreateUser.fill = GridBagConstraints.HORIZONTAL;
-        if (RunClient.userToken != null)
-            if (!RunClient.userToken.getGroups().contains("ADMIN"))
-                btnCreateUser.setEnabled(false);
+        
+//        btnCreateUser.setEnabled(false);
+//        if (RunClient.userToken != null) 
+//            if (RunClient.userToken.getGroups().contains("ADMIN"))
+//                btnCreateUser.setEnabled(true);
+        
         leftPanel.add(btnCreateUser, gbc_btnCreateUser);
 
         // Delete User button
@@ -342,9 +345,12 @@ public class GroupPanel extends JPanel {
         gbc_btnDeleteUser.gridx = 0;
         gbc_btnDeleteUser.gridy = 9;
         gbc_btnDeleteUser.fill = GridBagConstraints.HORIZONTAL;
-        if (RunClient.userToken != null)
-            if (!RunClient.userToken.getGroups().contains("ADMIN"))
-                btnDeleteUser.setEnabled(false);
+        
+//        btnDeleteUser.setEnabled(false);   
+//        if (RunClient.userToken != null)
+//            if (RunClient.userToken.getGroups().contains("ADMIN"))
+//                btnDeleteUser.setEnabled(true);
+        
         leftPanel.add(btnDeleteUser, gbc_btnDeleteUser);
 
         return leftPanel;

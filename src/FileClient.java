@@ -5,8 +5,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class FileClient extends Client implements FileClientInterface {
 
@@ -23,8 +21,9 @@ public class FileClient extends Client implements FileClientInterface {
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
             return response.getMessage().equals("VERIFIED");
-        } catch (IOException | ClassNotFoundException ex) {
-            Logger.getLogger(FileClient.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
         }
         return false;
     }

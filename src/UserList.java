@@ -23,6 +23,11 @@ public class UserList implements java.io.Serializable {
         User newUser = new User(hashedpass, salt);
         list.put(username, newUser);
     }
+    
+    public synchronized void changePass(String username, String password) {
+        byte[] hashedpass = hashPassword(password, list.get(username).getSalt());
+        list.get(username).setPassword(hashedpass);
+    }
 
     public static byte[] hashPassword(String password, byte[] salt) {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
@@ -83,7 +88,7 @@ public class UserList implements java.io.Serializable {
         private static final long serialVersionUID = -6699986336399821598L;
         private final ArrayList<String> groups;
         private final ArrayList<String> ownership;
-        private final byte[] hashedPassword;
+        private byte[] hashedPassword;
         private final byte[] salt;
 
         public User(byte[] pass, byte[] psalt) {
@@ -99,6 +104,10 @@ public class UserList implements java.io.Serializable {
 
         public boolean checkPassword(byte[] userPass) {
             return Arrays.equals(userPass, hashedPassword);
+        }
+        
+        public void setPassword(byte[] password) {
+            hashedPassword = password;
         }
 
         public ArrayList<String> getGroups() {

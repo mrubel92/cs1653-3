@@ -27,10 +27,10 @@ public class HomePanel extends JPanel {
     private final JButton btnLogin;
     private final JButton btnNewUser;
     private final JButton btnSwitchUser;
-    protected static final String IP_PATTERN = "^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
-            + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
-            + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
-            + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])$";
+//    protected static final String IP_PATTERN = "^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
+//            + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
+//            + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\."
+//            + "([01]?\\d\\d?|2[0-4]\\d|25[0-5])$";
     protected static final String PORT_PATTERN = "\\d{4,5}";
     protected static final String PASSWORD_PATTERN = "[ -~]{6,16}";
     private static Pattern p1;
@@ -41,7 +41,7 @@ public class HomePanel extends JPanel {
     public HomePanel(final JTabbedPane tabbedPanel) {
         p1 = Pattern.compile(RunClient.NAME_PATTERN);
         p2 = Pattern.compile(PASSWORD_PATTERN);
-        p3 = Pattern.compile(IP_PATTERN);
+//        p3 = Pattern.compile(IP_PATTERN);
         p4 = Pattern.compile(PORT_PATTERN);
 
         GridBagLayout gridBagLayout = new GridBagLayout();
@@ -66,7 +66,7 @@ public class HomePanel extends JPanel {
 
         // Username text field
         username = new JTextField();
-        username.setText("tdoshea90");
+        username.setText("tdo");
         GridBagConstraints gbc_username = new GridBagConstraints();
         gbc_username.insets = new Insets(0, 0, 10, 0);
         gbc_username.fill = GridBagConstraints.HORIZONTAL;
@@ -83,6 +83,7 @@ public class HomePanel extends JPanel {
 
         // Password text field
         password = new JPasswordField();
+        password.setText("123456");
         GridBagConstraints gbc_password = new GridBagConstraints();
         gbc_password.insets = new Insets(0, 0, 10, 0);
         gbc_password.fill = GridBagConstraints.HORIZONTAL;
@@ -99,7 +100,7 @@ public class HomePanel extends JPanel {
 
         // IP address text field
         ipAddress = new JTextField();
-        ipAddress.setText("127.0.0.1");
+        ipAddress.setText("localhost");
         ipAddress.setFont(new Font("Monospaced", Font.PLAIN, 10));
         GridBagConstraints gbc_ipAddress = new GridBagConstraints();
         gbc_ipAddress.insets = new Insets(0, 0, 10, 0);
@@ -152,12 +153,12 @@ public class HomePanel extends JPanel {
                 }
 
                 String ip = ipAddress.getText();
-                Matcher m3 = p3.matcher(ip);
-                if (!m3.matches()) {
-                    JOptionPane.showMessageDialog(null, "Bad IP address format!", "Bad IP",
-                                                  JOptionPane.OK_CANCEL_OPTION);
-                    return;
-                }
+//                Matcher m3 = p3.matcher(ip);
+//                if (!m3.matches()) {
+//                    JOptionPane.showMessageDialog(null, "Bad IP address format!", "Bad IP",
+//                                                  JOptionPane.OK_CANCEL_OPTION);
+//                    return;
+//                }
 
                 String port = portNum.getText();
                 Matcher m4 = p4.matcher(port);
@@ -285,6 +286,9 @@ public class HomePanel extends JPanel {
                     RunClient.gclient.disconnect();
                 if (RunClient.fclient.isConnected())
                     RunClient.fclient.disconnect();
+                
+                RunClient.userToken = null;
+                RunClient.signedToken = null;
             }
         });
         add(btnSwitchUser, gbc_btnSwitchUser);

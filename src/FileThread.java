@@ -21,8 +21,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -69,7 +67,8 @@ public class FileThread extends Thread {
                 Token t;
                 ShareFile sf;
 
-                if (!message.getMessage().equals("VERIFY") && !verifiedToken && !message.getMessage().equals("DH") && !message.getMessage().equals("FINGERPRINT"))
+                String msg = message.getMessage();
+                if (!msg.equals("VERIFY") && !verifiedToken && !msg.equals("DH") && !msg.equals("FINGERPRINT"))
                     message = new Envelope("DISCONNECT");
 
                 // Handler to list files that this user is allowed to see
@@ -87,8 +86,7 @@ public class FileThread extends Thread {
                             if (verifyToken(signedToken, yourToken)) {
                                 response = new Envelope("VERIFIED");
                                 verifiedToken = true;
-                            }
-                            else
+                            } else
                                 response = new Envelope("NOTVERIFIED");
                         }
                         tempResponse = new Envelope("ENCRYPTED");
@@ -414,8 +412,9 @@ public class FileThread extends Thread {
 
             sig.update(Utils.serializeEnv(token));
             return sig.verify(signedToken);
-        } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException | SignatureException ex) {
-            Logger.getLogger(FileThread.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException | InvalidKeyException | SignatureException e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace(System.err);
         }
         return false;
     }

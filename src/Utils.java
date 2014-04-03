@@ -14,6 +14,7 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
@@ -29,6 +30,8 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
+import java.util.*;
+import java.io.UnsupportedEncodingException;
 
 public class Utils {
 
@@ -158,6 +161,7 @@ public class Utils {
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivSpec);
+            Envelope hmacEnv = appendHMac(message, secretKey, ivSpec);
             byte[] serializedEnv = serializeEnv(message);
             return cipher.doFinal(serializedEnv);
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException | InvalidKeyException e) {
@@ -170,12 +174,149 @@ public class Utils {
         return null;
     }
 
+    public static Envelope appendHMac(Envelope envelope, SecretKey secretKey, IvParameterSpec ivSpec)
+    {
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        //return envelope with last object in it being the HMac value
+        byte[] serializedEnv = serializeEnv(envelope);
+        byte[] keyArray = secretKey.getEncoded();
+        if(keyArray.length > 64)
+        {
+            //key is too long, we must hash it down to 64 bytes
+            try {
+                Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+                MessageDigest digest = MessageDigest.getInstance("SHA-1", "BC");
+                digest.reset();
+                keyArray = digest.digest(keyArray);
+            } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+                System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+                e.printStackTrace(System.err);
+            }
+        }
+        else if(keyArray.length < 64)
+        {
+            byte[] keyTemp = keyArray.clone();
+            keyArray = new byte[64];
+            for(int i = 0; i < keyTemp.length; i++)
+            {
+                keyArray[i] = keyTemp[i];
+            }
+            for(int i = keyTemp.length; i < 64; i++)
+            {
+                keyArray[i] = 0x00;
+            }
+        }
+        byte opad = 0x5a;
+        byte ipad = 0x36;
+        byte[] opadkey = new byte[64];
+        byte[] ipadkey = new byte[64];
+        for(int i = 0; i < opadkey.length; i++)
+        {
+            int temp = (int) keyArray[i] ^ (int) opad;
+            opadkey[i] = (byte) temp;
+        }
+        for(int i = 0; i < ipadkey.length; i++)
+        {
+            int temp = keyArray[i] ^ ipad;
+            ipadkey[i] = (byte) temp;
+        }
+        byte[] toHash = new byte[serializedEnv.length+128];
+        byte[] hashed = null;
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        try {
+            Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+            MessageDigest digest = MessageDigest.getInstance("SHA-1", "BC");
+            digest.reset();
+            hashed = digest.digest(toHash);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+            e.printStackTrace(System.err);
+        }
+        envelope.addHmac(hashed);
+        return envelope;
+    }
+
+    public static Envelope verifyHMac(Envelope envelope, SecretKey secretKey, IvParameterSpec ivSpec)
+    {
+        //This method should return the Envelope without the hmac if it is correct and null if it is incorrect
+        byte[] envHmac = envelope.rmHmac();
+
+        byte[] serializedEnv = serializeEnv(envelope);
+        byte[] keyArray = secretKey.getEncoded();
+        if(keyArray.length > 64)
+        {
+            //key is too long, we must hash it down to 64 bytes
+            try {
+                Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+                MessageDigest digest = MessageDigest.getInstance("SHA-1", "BC");
+                digest.reset();
+                keyArray = digest.digest(keyArray);
+            } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+                System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+                e.printStackTrace(System.err);
+            }
+        }
+        else if(keyArray.length < 64)
+        {
+            byte[] keyTemp = keyArray.clone();
+            keyArray = new byte[64];
+            for(int i = 0; i < keyTemp.length; i++)
+            {
+                keyArray[i] = keyTemp[i];
+            }
+            for(int i = keyTemp.length; i < 64; i++)
+            {
+                keyArray[i] = 0x00;
+            }
+        }
+        byte opad = 0x5a;
+        byte ipad = 0x36;
+        byte[] opadkey = new byte[64];
+        byte[] ipadkey = new byte[64];
+        for(int i = 0; i < opadkey.length; i++)
+        {
+            int temp = (int) keyArray[i] ^ (int) opad;
+            opadkey[i] = (byte) temp;
+        }
+        for(int i = 0; i < ipadkey.length; i++)
+        {
+            int temp = keyArray[i] ^ ipad;
+            ipadkey[i] = (byte) temp;
+        }
+        byte[] toHash = new byte[serializedEnv.length+128];
+        byte[] hashed = null;
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        try {
+            Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+            MessageDigest digest = MessageDigest.getInstance("SHA-1", "BC");
+            digest.reset();
+            hashed = digest.digest(toHash);
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            System.err.println("Error: " + e.getMessage() + "\n\n" + e.toString());
+            e.printStackTrace(System.err);
+        }
+
+        //check to see if the HMAC on the message equals the one caluclated here
+        if(Arrays.equals(hashed,envHmac))
+        {
+            return envelope;
+        }
+        else
+        {
+            System.out.println("HMACs did not match!!!!!!");
+            return null;
+        }
+
+
+    }
+
     public static Envelope decryptEnv(byte[] bytes, SecretKey secretKey, IvParameterSpec ivSpec) {
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
             cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec);
             byte[] decrypted = cipher.doFinal(bytes);
-            return (Envelope) deserializeEnv(decrypted);
+            Envelope hmacMessage = (Envelope) deserializeEnv(decrypted);
+            return verifyHMac(hmacMessage, secretKey, ivSpec);
         } catch (NoSuchAlgorithmException | NoSuchProviderException | NoSuchPaddingException e) {
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace(System.err);

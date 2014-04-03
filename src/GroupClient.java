@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GroupClient extends Client implements GroupClientInterface {
-
+    private int messageCounter = 0;
     public boolean checkNewPassword(String username) {
         try {
             Envelope message, response;
@@ -14,12 +14,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nCHECK_PASS message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int) response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
 
             if (response.getMessage().equals("NEW"))
@@ -38,7 +49,8 @@ public class GroupClient extends Client implements GroupClientInterface {
             message.addObject(username);
             message.addObject(newPassword);
             System.out.println("\nCREATE_PASS message sent to Group Server: " + message.toString());
-
+            messageCounter++;
+            message.addObject(messageCounter);
             Envelope tempMessage = new Envelope("ENCRYPTED");
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
@@ -69,7 +81,8 @@ public class GroupClient extends Client implements GroupClientInterface {
             message.addObject(username); // Add user name string
             message.addObject(password);
             System.out.println("\nGET message sent to Group Server: " + message.toString());
-
+            messageCounter++;
+            message.addObject(messageCounter);
             Envelope tempMessage = new Envelope("ENCRYPTED");
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
@@ -77,6 +90,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
             // Successful response
             if (response.getMessage().equals("OK")) {
@@ -84,7 +106,7 @@ public class GroupClient extends Client implements GroupClientInterface {
                 ArrayList<Object> temp;
                 temp = response.getObjContents();
 
-                if (temp.size() == 2) {
+                if (temp.size() == 3) {
                     token = (UserToken) temp.get(0);
                     signedToken = (byte[]) temp.get(1);
                     tokenEnv = new Envelope("TOKEN");
@@ -111,7 +133,8 @@ public class GroupClient extends Client implements GroupClientInterface {
             message.addObject(token); // Add the requester's token
             message.addObject(password); // Add the user's password
             System.out.println("\nCUSER message sent to Group Server: " + message.toString());
-
+            messageCounter++;
+            message.addObject(messageCounter);
             Envelope tempMessage = new Envelope("ENCRYPTED");
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
@@ -119,6 +142,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
             return response.getMessage().equals("OK");
         } catch (IOException | ClassNotFoundException e) {
@@ -140,12 +172,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nDUSER message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
             return response.getMessage().equals("OK");
         } catch (IOException | ClassNotFoundException e) {
@@ -166,12 +209,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nCGROUP message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
             // If server indicates success, return true
             if (response.getMessage().equals("OK")) {
@@ -197,13 +251,24 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nDGROUP message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
-            System.out.println("Message received from Group Server: " + response.toString());
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
+            System.out.println("Message received from Group : " + response.toString());
             // If server indicates success, return true
             if (response.getMessage().equals("OK")) {
                 token.removeGroup(groupname);
@@ -229,12 +294,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nLMEMBERS message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
 
             // If server indicates success, return the member list
@@ -258,12 +334,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nLGROUPS message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
 
             // If server indicates success, return the member list
@@ -289,12 +376,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nAUSERTOGROUP message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
             return response.getMessage().equals("OK");
         } catch (IOException | ClassNotFoundException e) {
@@ -316,12 +414,23 @@ public class GroupClient extends Client implements GroupClientInterface {
             System.out.println("\nRUSERFROMGROUP message sent to Group Server: " + message.toString());
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, gsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), gsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int)response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
             System.out.println("Message received from Group Server: " + response.toString());
             return response.getMessage().equals("OK");
         } catch (IOException | ClassNotFoundException e) {

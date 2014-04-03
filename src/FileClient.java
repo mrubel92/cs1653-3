@@ -7,19 +7,31 @@ import java.io.IOException;
 import java.util.List;
 
 public class FileClient extends Client implements FileClientInterface {
-
+    public int messageCounter = 0;
     public boolean verifyToken(UserToken token, byte[] signedToken) {
         try {
+            messageCounter = 0;
             Envelope message, response;
             message = new Envelope("VERIFY"); // Success
             message.addObject(token);
             message.addObject(signedToken);
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int) response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack" + messageCounter + " " + seqNumber);
+                System.exit(0);
+            }
             return response.getMessage().equals("VERIFIED");
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Error: " + e.getMessage());
@@ -43,12 +55,23 @@ public class FileClient extends Client implements FileClientInterface {
         message.addObject(token);
         try {
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int) response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
 
             if (response.getMessage().equals("OK"))
                 System.out.printf("File %s deleted successfully\n", filename);
@@ -82,12 +105,23 @@ public class FileClient extends Client implements FileClientInterface {
                 message.addObject(token);
 
                 tempMessage = new Envelope("ENCRYPTED");
+                messageCounter++;
+                message.addObject(messageCounter);
                 tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                 output.reset();
                 output.writeObject(tempMessage);
 
                 tempResponse = (Envelope) input.readObject();
                 response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+                int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                int seqNumber = (int) response.getObjContents().get(numberIndex);
+                messageCounter++;
+                if(seqNumber != messageCounter)
+                {
+                    //cease communication
+                    System.out.println("Possible Replay or Reorder Attack");
+                    System.exit(0);
+                }
 
                 while (response.getMessage().equals("CHUNK")) {
                     fos.write((byte[]) response.getObjContents().get(0), 0, (Integer) response.getObjContents().get(1));
@@ -95,12 +129,23 @@ public class FileClient extends Client implements FileClientInterface {
                     message = new Envelope("DOWNLOADF"); // Success
 
                     tempMessage = new Envelope("ENCRYPTED");
+                    messageCounter++;
+                    message.addObject(messageCounter);
                     tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                     output.reset();
                     output.writeObject(tempMessage);
 
                     tempResponse = (Envelope) input.readObject();
                     response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+                    numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                    seqNumber = (int) response.getObjContents().get(numberIndex);
+                    messageCounter++;
+                    if(seqNumber != messageCounter)
+                    {
+                        //cease communication
+                        System.out.println("Possible Replay or Reorder Attack");
+                        System.exit(0);
+                    }
                 }
                 fos.close();
 
@@ -110,6 +155,8 @@ public class FileClient extends Client implements FileClientInterface {
                     message = new Envelope("OK"); // Success
 
                     tempMessage = new Envelope("ENCRYPTED");
+                    messageCounter++;
+                    message.addObject(messageCounter);
                     tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                     output.reset();
                     output.writeObject(tempMessage);
@@ -142,12 +189,23 @@ public class FileClient extends Client implements FileClientInterface {
             message.addObject(token); // Add requester's token
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int) response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
 
             // If server indicates success, return the member list
             if (response.getMessage().equals("OK"))
@@ -171,12 +229,23 @@ public class FileClient extends Client implements FileClientInterface {
             message.addObject(group);
 
             Envelope tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
 
             Envelope tempResponse = (Envelope) input.readObject();
             response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+            int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+            int seqNumber = (int) response.getObjContents().get(numberIndex);
+            messageCounter++;
+            if(seqNumber != messageCounter)
+            {
+                //cease communication
+                System.out.println("Possible Replay or Reorder Attack");
+                System.exit(0);
+            }
 
             // If server indicates success, return the member list
             if (response.getMessage().equals("OK"))
@@ -204,6 +273,8 @@ public class FileClient extends Client implements FileClientInterface {
             message.addObject(token); // Add requester's token
 
             tempMessage = new Envelope("ENCRYPTED");
+            messageCounter++;
+            message.addObject(messageCounter);
             tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
             output.reset();
             output.writeObject(tempMessage);
@@ -211,6 +282,15 @@ public class FileClient extends Client implements FileClientInterface {
             try (FileInputStream fis = new FileInputStream(sourceFile)) {
                 tempResponse = (Envelope) input.readObject();
                 response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+                int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                int seqNumber = (int) response.getObjContents().get(numberIndex);
+                messageCounter++;
+                if(seqNumber != messageCounter)
+                {
+                    //cease communication
+                    System.out.println("Possible Replay or Reorder Attack");
+                    System.exit(0);
+                }
 
                 if (response.getMessage().equals("READY"))
                     System.out.printf("Meta data upload successful\n");
@@ -241,12 +321,23 @@ public class FileClient extends Client implements FileClientInterface {
                     message.addObject(new Integer(n));
 
                     tempMessage = new Envelope("ENCRYPTED");
+                    messageCounter++;
+                    message.addObject(messageCounter);
                     tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                     output.reset();
                     output.writeObject(tempMessage);
 
                     tempResponse = (Envelope) input.readObject();
                     response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+                    numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                    seqNumber = (int) response.getObjContents().get(numberIndex);
+                    messageCounter++;
+                    if(seqNumber != messageCounter)
+                    {
+                        //cease communication
+                        System.out.println("Possible Replay or Reorder Attack");
+                        System.exit(0);
+                    }
 
                 } while (fis.available() > 0);
             }
@@ -254,12 +345,23 @@ public class FileClient extends Client implements FileClientInterface {
             if (response.getMessage().equals("READY")) {
                 message = new Envelope("EOF");
                 tempMessage = new Envelope("ENCRYPTED");
+                messageCounter++;
+                message.addObject(messageCounter);
                 tempMessage.addObject(Utils.encryptEnv(message, fsSecretKey, ivSpec));
                 output.reset();
                 output.writeObject(tempMessage);
 
                 tempResponse = (Envelope) input.readObject();
                 response = Utils.decryptEnv((byte[]) tempResponse.getObjContents().get(0), fsSecretKey, ivSpec);
+                int numberIndex = response.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                int seqNumber = (int) response.getObjContents().get(numberIndex);
+                messageCounter++;
+                if(seqNumber != messageCounter)
+                {
+                    //cease communication
+                    System.out.println("Possible Replay or Reorder Attack");
+                    System.exit(0);
+                }
                 if (response.getMessage().equals("OK"))
                     System.out.printf("\nFile data upload successful\n");
                 else {

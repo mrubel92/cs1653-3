@@ -32,10 +32,12 @@ public class FileThread extends Thread {
 
     protected SecretKey secretKey;
     private IvParameterSpec ivSpec;
+    private int messageCounter;
 
     public FileThread(Socket _socket, FileServer _fs) {
         socket = _socket;
         my_fs = _fs;
+        messageCounter = 0;
     }
 
     @Override
@@ -44,16 +46,28 @@ public class FileThread extends Thread {
         boolean proceed = true;
         try {
             // Announces connection and opens object streams
-            System.out
-                    .println("\n*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + " ***");
+            System.out.println("\n*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + " ***");
             final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
             final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+            messageCounter = 0;
 
             do {
                 Envelope tempMessage = (Envelope) input.readObject();
                 Envelope message = null;
                 if (tempMessage.getMessage().equals("ENCRYPTED"))
+                {
                     message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                    int numberIndex = message.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                    int seqNumber =(Integer) message.getObjContents().get(numberIndex);
+                    messageCounter++;
+                    if(seqNumber != messageCounter)
+                    {
+                        //cease communication
+                        System.out.println("Possible Replay or Reorder Attack");
+                        System.exit(0);
+                    }
+
+                }
                 else
                     message = (Envelope) tempMessage.getObjContents().get(0);
 
@@ -90,7 +104,10 @@ public class FileThread extends Thread {
                                 response = new Envelope("NOTVERIFIED");
                         }
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
+
                         output.reset();
                         output.writeObject(tempResponse);
                         System.out.println("VERIFY response sent to client: " + response.toString());
@@ -145,6 +162,8 @@ public class FileThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -182,6 +201,8 @@ public class FileThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -216,13 +237,27 @@ public class FileThread extends Thread {
 
                                         response = new Envelope("READY"); // Success
                                         tempResponse = new Envelope("ENCRYPTED");
+                                        messageCounter++;
+                                        response.addObject(messageCounter);
                                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                         output.reset();
                                         output.writeObject(tempResponse);
 
                                         tempMessage = (Envelope) input.readObject();
                                         if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                        {
                                             message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                            int numberIndex = message.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                                            int seqNumber =(Integer) message.getObjContents().get(numberIndex);
+                                            messageCounter++;
+                                            if(seqNumber != messageCounter)
+                                            {
+                                                //cease communication
+                                                System.out.println("Possible Replay or Reorder Attack2");
+                                                System.exit(0);
+                                            }
+                                        }
+                                            
                                         else
                                             message = (Envelope) tempMessage.getObjContents().get(0);
                                         while (message.getMessage().equals("CHUNK")) {
@@ -230,13 +265,27 @@ public class FileThread extends Thread {
                                                     .getObjContents().get(1));
                                             response = new Envelope("READY"); // Success
                                             tempResponse = new Envelope("ENCRYPTED");
+                                            messageCounter++;
+                                            response.addObject(messageCounter);
                                             tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                             output.reset();
                                             output.writeObject(tempResponse);
 
                                             tempMessage = (Envelope) input.readObject();
                                             if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                            {
                                                 message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                                int numberIndex = message.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                                                int seqNumber =(Integer) message.getObjContents().get(numberIndex);
+                                                messageCounter++;
+                                                if(seqNumber != messageCounter)
+                                                {
+                                                    //cease communication
+                                                    System.out.println("Possible Replay or Reorder Attack3");
+                                                    System.exit(0);
+                                                }
+                                            }
+                                                
                                             else
                                                 message = (Envelope) tempMessage.getObjContents().get(0);
                                         }
@@ -254,6 +303,8 @@ public class FileThread extends Thread {
                             }
                         }
 
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse = new Envelope("ENCRYPTED");
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
@@ -267,7 +318,8 @@ public class FileThread extends Thread {
                         if (sf == null) {
                             System.out.printf("Error: File %s doesn't exist\n", remotePath);
                             response = new Envelope("ERROR_FILEMISSING");
-
+                            messageCounter++;
+                            response.addObject(messageCounter);
                             tempResponse = new Envelope("ENCRYPTED");
                             tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                             output.reset();
@@ -277,6 +329,8 @@ public class FileThread extends Thread {
                             response = new Envelope("ERROR_PERMISSION");
 
                             tempResponse = new Envelope("ENCRYPTED");
+                            messageCounter++;
+                            response.addObject(messageCounter);
                             tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                             output.reset();
                             output.writeObject(tempResponse);
@@ -287,7 +341,8 @@ public class FileThread extends Thread {
                                     System.out.printf("Error file %s missing from disk\n",
                                                       "_" + remotePath.replace('/', '_'));
                                     response = new Envelope("ERROR_NOTONDISK");
-
+                                    messageCounter++;
+                                    response.addObject(messageCounter);
                                     tempResponse = new Envelope("ENCRYPTED");
                                     tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                     output.reset();
@@ -309,7 +364,8 @@ public class FileThread extends Thread {
 
                                             response.addObject(buf);
                                             response.addObject(new Integer(n));
-
+                                            messageCounter++;
+                                            response.addObject(messageCounter);
                                             tempResponse = new Envelope("ENCRYPTED");
                                             tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                             output.reset();
@@ -317,7 +373,18 @@ public class FileThread extends Thread {
 
                                             tempMessage = (Envelope) input.readObject();
                                             if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                            {
                                                 message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                                int numberIndex = message.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                                                int seqNumber = (Integer) message.getObjContents().get(numberIndex);
+                                                messageCounter++;
+                                                if(seqNumber != messageCounter)
+                                                {
+                                                    //cease communication
+                                                    System.out.println("Possible Replay or Reorder Attack4");
+                                                    System.exit(0);
+                                                }
+                                            }
                                             else
                                                 message = (Envelope) tempMessage.getObjContents().get(0);
 
@@ -328,13 +395,26 @@ public class FileThread extends Thread {
                                     if (message.getMessage().equals("DOWNLOADF")) {
                                         response = new Envelope("EOF");
                                         tempResponse = new Envelope("ENCRYPTED");
+                                        messageCounter++;
+                                        response.addObject(messageCounter);
                                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                                         output.reset();
                                         output.writeObject(tempResponse);
 
                                         tempMessage = (Envelope) input.readObject();
                                         if (tempMessage.getMessage().equals("ENCRYPTED"))
+                                        {
                                             message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                                            int numberIndex = message.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                                            int seqNumber = (Integer) message.getObjContents().get(numberIndex);
+                                            messageCounter++;
+                                            if(seqNumber != messageCounter)
+                                            {
+                                                //cease communication
+                                                System.out.println("Possible Replay or Reorder Attack5");
+                                                System.exit(0);
+                                            }
+                                        }
                                         else
                                             message = (Envelope) tempMessage.getObjContents().get(0);
                                         if (message.getMessage().equals("OK"))
@@ -384,6 +464,8 @@ public class FileThread extends Thread {
                                 response = new Envelope(e1.getMessage());
                             }
 
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse = new Envelope("ENCRYPTED");
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();

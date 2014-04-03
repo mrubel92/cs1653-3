@@ -31,11 +31,13 @@ public class GroupThread extends Thread {
     private final GroupServer my_gs;
     protected SecretKey secretKey;
     private IvParameterSpec ivSpec;
+    private int messageCounter;
 
     public GroupThread(Socket _socket, GroupServer _gs) {
         socket = _socket;
         my_gs = _gs;
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        messageCounter = 0;
     }
 
     @Override
@@ -43,18 +45,30 @@ public class GroupThread extends Thread {
         boolean proceed = true;
         try {
             // Announces connection and opens object streams
-            System.out
-                    .println("\n*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + " ***");
+            System.out.println("\n*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + " ***");
 
             final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
             final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
+            //messageCounter = 0;
 
             do {
 
                 Envelope tempMessage = (Envelope) input.readObject();
                 Envelope message = null;
                 if (tempMessage.getMessage().equals("ENCRYPTED"))
+                {
                     message = Utils.decryptEnv((byte[]) tempMessage.getObjContents().get(0), secretKey, ivSpec);
+                    int numberIndex = message.getObjContents().size() - 1; //gives us the index of the number appended to the message
+                    int seqNumber =(Integer)message.getObjContents().get(numberIndex);
+                    messageCounter++;
+                    if(seqNumber != messageCounter)
+                    {
+                        //cease communication
+                        System.out.println("Possible Replay or Reorder Attack "+seqNumber+" "+messageCounter);
+                        System.exit(0);
+                    }
+                }
+                    
                 else
                     message = (Envelope) tempMessage.getObjContents().get(0);
 
@@ -94,6 +108,8 @@ public class GroupThread extends Thread {
                             response = new Envelope("NOT_NEW");
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -116,6 +132,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -143,6 +161,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -166,6 +186,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -187,6 +209,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -207,6 +231,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -229,6 +255,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -255,6 +283,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -277,6 +307,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -297,6 +329,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
@@ -317,6 +351,8 @@ public class GroupThread extends Thread {
                         }
 
                         tempResponse = new Envelope("ENCRYPTED");
+                        messageCounter++;
+                        response.addObject(messageCounter);
                         tempResponse.addObject(Utils.encryptEnv(response, secretKey, ivSpec));
                         output.reset();
                         output.writeObject(tempResponse);
